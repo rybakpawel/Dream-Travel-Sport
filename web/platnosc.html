@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Płatność – Dream Travel Sport</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/src/styles/pages/platnosc.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo-wrap">
+        <a href="index.html">
+          <img src="assets/brand/logo-dts.png" alt="Dream Travel Sport Logo" />
+          <div class="brand-text">
+            <span>Dream Travel Sport</span>
+            <span>sportowe wyjazdy premium</span>
+          </div>
+        </a>
+        <div class="brand-extra">
+          <div class="brand-extra-phone">Tel: +48 793 020 092</div>
+          <div class="brand-extra-socials">
+            <span>Śledź nas:</span>
+            <a
+              href="https://www.facebook.com/dreamtravelsport"
+              class="social-badge social-fb"
+              target="_blank"
+              rel="noopener"
+              aria-label="Facebook"
+            >
+              <i class="fa-brands fa-facebook-f"></i>
+            </a>
+            <a
+              href="https://www.instagram.com/dreamtravelsport"
+              class="social-badge social-ig"
+              target="_blank"
+              rel="noopener"
+              aria-label="Instagram"
+            >
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      <button class="mobile-menu-toggle" aria-label="Menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="nav-right">
+        <nav class="main-nav">
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="mobile-menu-overlay"></div>
+      <div class="mobile-menu">
+        <nav>
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="mobile-nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <h1 id="status-title">Sprawdzamy status płatności…</h1>
+      <p class="muted" id="status-subtitle">
+        Jeśli właśnie wróciłeś z bramki płatności, potwierdzenie może zająć kilkanaście sekund.
+      </p>
+
+      <div class="status-card">
+        <div class="row">
+          <span class="label">Numer zamówienia</span>
+          <strong class="value mono" id="order-number">—</strong>
+        </div>
+
+        <div class="row">
+          <span class="label">Status zamówienia</span>
+          <strong class="value" id="order-status">—</strong>
+        </div>
+
+        <div class="row">
+          <span class="label">Status płatności</span>
+          <strong class="value" id="payment-status">—</strong>
+        </div>
+
+        <div class="email-card" id="email-card" style="display: none">
+          <p class="muted muted--mb-10">
+            Aby sprawdzić status zamówienia, wpisz email użyty podczas składania rezerwacji.
+          </p>
+          <div class="email-row">
+            <input
+              id="email-input"
+              type="email"
+              placeholder="twój@email.pl"
+              autocomplete="email"
+            />
+            <button class="btn-secondary" id="email-submit">Sprawdź</button>
+          </div>
+        </div>
+
+        <div class="transfer" id="manual-transfer" style="display: none">
+          <h2>Instrukcja przelewu</h2>
+          <div class="transfer-grid">
+            <div>
+              <div class="transfer-label">Kwota</div>
+              <div class="transfer-value" id="transfer-amount">—</div>
+            </div>
+            <div>
+              <div class="transfer-label">Tytuł przelewu</div>
+              <div class="transfer-value mono" id="transfer-title">—</div>
+            </div>
+            <div class="transfer-wide">
+              <div class="transfer-label">Numer konta</div>
+              <div class="transfer-value mono" id="transfer-account">—</div>
+              <div class="muted" id="transfer-account-hint" style="margin-top: 8px">
+                Jeśli numer konta nie jest dostępny, skontaktujemy się z Tobą mailowo.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="retry-payment" style="display: none">
+            Wznów płatność
+          </button>
+          <button class="btn-secondary" id="refresh-status">Odśwież status</button>
+          <a class="btn-secondary" href="index.html">Strona główna</a>
+          <a class="btn-secondary" href="koszyk.html" id="back-to-cart" style="display: none"
+            >Wróć do koszyka</a
+          >
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      © 2025 Dream Travel Sport – sportowe wyjazdy premium. Wszystkie prawa zastrzeżone.
+      <br />
+      <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline; margin-top: 8px; display: inline-block;">Regulamin</a>
+    </footer>
+
+    <script type="module" src="src/utils/mobile-menu.ts"></script>
+    <script type="module" src="src/features/cart/badge.ts"></script>
+    <script type="module" src="src/pages/platnosc.ts"></script>
+  </body>
+</html>
+
+

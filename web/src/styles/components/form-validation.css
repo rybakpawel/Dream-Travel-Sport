@@ -1,0 +1,52 @@
+/* Style dla walidacji formularzy */
+
+.field-error {
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.field-error:focus {
+  outline-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.field-error-message {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field-error-message::before {
+  content: "⚠";
+  font-size: 14px;
+}
+
+/* Animacja pojawienia się błędu */
+.field-error-message {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Styl dla pól z sukcesem (opcjonalnie) */
+.field-success {
+  border-color: #10b981 !important;
+}
+
+/* Dla pól w field-group */
+.field-group .field-error-message {
+  margin-top: 4px;
+}
+

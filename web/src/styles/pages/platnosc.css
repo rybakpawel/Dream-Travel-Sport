@@ -1,0 +1,156 @@
+@import "../base.css";
+@import "../components/header.css";
+@import "../components/buttons.css";
+@import "../components/notifications.css";
+@import "../components/loading.css";
+
+.cart-link {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+main {
+  max-width: 900px;
+  margin: 32px auto 80px;
+  padding: 0 32px;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.muted {
+  color: var(--dt-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.muted--mb-10 {
+  margin-bottom: 10px;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+}
+
+.status-card {
+  background: rgba(4, 12, 24, 0.9);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 18px 18px 20px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.row:last-of-type {
+  border-bottom: none;
+}
+
+.label {
+  color: var(--dt-muted);
+}
+
+.value {
+  color: var(--dt-light);
+}
+
+.email-card {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.email-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.email-row input {
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(3, 10, 22, 0.9);
+  color: var(--dt-light);
+}
+
+.transfer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.transfer h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.transfer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.transfer-wide {
+  grid-column: 1 / -1;
+}
+
+.transfer-label {
+  color: var(--dt-muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.transfer-value {
+  color: var(--dt-light);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 32px 26px;
+  font-size: 12px;
+  color: var(--dt-muted);
+  text-align: center;
+  background: #020712;
+}
+
+@media (max-width: 720px) {
+  main {
+    padding: 0 18px;
+  }
+  .email-row {
+    grid-template-columns: 1fr;
+  }
+  .transfer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+

@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: dts-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dream_travel_sport
+    ports:
+      - "5432:5432"
+    volumes:
+      - dts_pg_data:/var/lib/postgresql/data
+
+volumes:
+  dts_pg_data:

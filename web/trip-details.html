@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Szczegóły wyjazdu – Dream Travel Sport</title>
+    <meta
+      name="description"
+      content="Szczegóły wyjazdu sportowego Dream Travel Sport. Sprawdź datę, cenę i dostępność miejsc."
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/src/styles/pages/trip-details.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo-wrap">
+        <a href="index.html">
+          <img src="assets/brand/logo-dts.png" alt="Dream Travel Sport Logo" />
+          <div class="brand-text">
+            <span>Dream Travel Sport</span>
+            <span>sportowe wyjazdy premium</span>
+          </div>
+        </a>
+        <div class="brand-extra">
+          <div class="brand-extra-phone">Tel: +48 793 020 092</div>
+          <div class="brand-extra-socials">
+            <span>Śledź nas:</span>
+            <a
+              href="https://www.facebook.com/dreamtravelsport"
+              class="social-badge social-fb"
+              target="_blank"
+              rel="noopener"
+              aria-label="Facebook"
+            >
+              <i class="fa-brands fa-facebook-f"></i>
+            </a>
+            <a
+              href="https://www.instagram.com/dreamtravelsport"
+              class="social-badge social-ig"
+              target="_blank"
+              rel="noopener"
+              aria-label="Instagram"
+            >
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button class="mobile-menu-toggle" aria-label="Menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="nav-right">
+        <nav class="main-nav">
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="mobile-menu-overlay"></div>
+      <div class="mobile-menu">
+        <nav>
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="mobile-nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Loading State -->
+      <div id="loading-state" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Ładowanie szczegółów wyjazdu...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error-state" class="error-state" style="display: none;">
+        <h1>Nie znaleziono wyjazdu</h1>
+        <p>Wyjazd, którego szukasz, nie istnieje lub został usunięty.</p>
+        <a href="index.html" class="btn-primary">Wróć do strony głównej</a>
+      </div>
+
+      <!-- Trip Details -->
+      <div id="trip-details" class="trip-details" style="display: none;">
+        <!-- Hero Image Section -->
+        <section class="trip-hero">
+          <div class="trip-hero-image" id="trip-hero-image"></div>
+          <div class="trip-hero-overlay">
+            <div class="trip-hero-content">
+              <div class="trip-tag" id="trip-tag"></div>
+              <h1 class="trip-title" id="trip-title"></h1>
+              <div class="trip-meta" id="trip-meta"></div>
+              <div class="trip-date" id="trip-date"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Trip Info Section -->
+        <section class="trip-info">
+          <div class="trip-info-container">
+            <div class="trip-info-main">
+              <div class="trip-details-content">
+                <h2>Szczegóły wyjazdu</h2>
+                <div class="trip-description" id="trip-description"></div>
+              </div>
+            </div>
+
+            <aside class="trip-info-sidebar">
+              <div class="trip-booking-card">
+                <!-- Wybór miejsca wylotu -->
+                <div id="departure-point-select-container" class="departure-point-select-container" style="display: none;">
+                  <label for="departure-point-select" class="departure-point-label">
+                    Miejsce wylotu *
+                  </label>
+                  <select id="departure-point-select" name="departurePoint" class="departure-point-select" required>
+                    <option value="">Wybierz miejsce wylotu</option>
+                  </select>
+                </div>
+
+                <!-- Klasa hotelu -->
+                <div id="trip-hotel-class-container" class="trip-hotel-class" style="display: none; margin-top: 16px;">
+                  <div class="hotel-class-label">Klasa hotelu</div>
+                  <div id="trip-hotel-class-stars" class="hotel-class-stars-display"></div>
+                </div>
+
+                <div class="trip-price">
+                  <span class="price-label">Cena</span>
+                  <span class="price-value" id="trip-price"></span>
+                  <span class="price-unit">/ os.</span>
+                </div>
+
+                <div class="trip-availability">
+                  <div class="availability-label">Dostępność</div>
+                  <div class="availability-value" id="trip-availability"></div>
+                </div>
+
+                <div class="trip-actions">
+                  <button id="add-to-cart-btn" type="button" class="btn-primary btn-full">Do koszyka</button>
+                  <a href="index.html" class="btn-secondary btn-full">Wróć do wyjazdów</a>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      © 2025 Dream Travel Sport – sportowe wyjazdy premium. Wszystkie prawa zastrzeżone.
+      <br />
+      <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline; margin-top: 8px; display: inline-block;">Regulamin</a>
+    </footer>
+
+    <script type="module" src="src/utils/mobile-menu.ts"></script>
+    <script type="module" src="src/features/cart/badge.ts"></script>
+    <script type="module" src="src/pages/trip-details.ts"></script>
+  </body>
+</html>
+

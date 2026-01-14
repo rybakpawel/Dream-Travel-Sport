@@ -1,0 +1,128 @@
+/* System powiadomień (toast notifications) */
+
+.notifications-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--dt-dark);
+  border: 1px solid var(--dt-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: var(--dt-light);
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: auto;
+  max-width: 100%;
+}
+
+.notification--show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification--hide {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.notification__icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.notification__message {
+  flex: 1;
+  word-wrap: break-word;
+}
+
+.notification__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--dt-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.notification__close:hover {
+  color: var(--dt-light);
+}
+
+/* Typy powiadomień */
+.notification--success {
+  border-left: 4px solid #10b981;
+}
+
+.notification--success .notification__icon {
+  color: #10b981;
+}
+
+.notification--error {
+  border-left: 4px solid #ef4444;
+}
+
+.notification--error .notification__icon {
+  color: #ef4444;
+}
+
+.notification--warning {
+  border-left: 4px solid #f59e0b;
+}
+
+.notification--warning .notification__icon {
+  color: #f59e0b;
+}
+
+.notification--info {
+  border-left: 4px solid #3b82f6;
+}
+
+.notification--info .notification__icon {
+  color: #3b82f6;
+}
+
+/* Responsywność */
+@media (max-width: 768px) {
+  .notifications-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .notification {
+    padding: 12px;
+    font-size: 13px;
+  }
+}
+

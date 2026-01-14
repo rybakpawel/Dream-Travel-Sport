@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Administracyjny - Dream Travel Sport</title>
+    <link rel="stylesheet" href="/src/styles/base.css" />
+    <link rel="stylesheet" href="/src/styles/components/header.css" />
+    <link rel="stylesheet" href="/src/styles/components/buttons.css" />
+    <link rel="stylesheet" href="/src/styles/components/notifications.css" />
+    <link rel="stylesheet" href="/src/styles/components/loading.css" />
+    <link rel="stylesheet" href="/src/styles/components/form-validation.css" />
+    <link rel="stylesheet" href="/src/styles/pages/admin.css" />
+    <!-- Quill.js for rich text editing -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-container">
+        <a href="index.html" class="logo">
+          <img src="/assets/brand/logo-dts.png" alt="Dream Travel Sport" />
+        </a>
+        <nav class="nav">
+          <a href="index.html">Strona główna</a>
+          <a href="admin.html" class="active">Dashboard</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <div class="admin-container">
+        <h1>Dashboard Administracyjny</h1>
+
+        <!-- Login Form (jeśli nie zalogowany) -->
+        <div id="login-section" class="admin-section">
+          <h2>Logowanie</h2>
+          <form id="login-form" class="admin-form">
+            <div class="form-group">
+              <label for="admin-token">Token administracyjny</label>
+              <input type="password" id="admin-token" name="token" required autocomplete="off" />
+            </div>
+            <button type="submit" class="btn-primary">Zaloguj</button>
+          </form>
+        </div>
+
+        <!-- Dashboard Content (jeśli zalogowany) -->
+        <div id="dashboard-section" class="admin-section" style="display: none">
+          <!-- Stats -->
+          <section class="stats-grid">
+            <div class="stat-card">
+              <h3>Wyjazdy</h3>
+              <p class="stat-value" id="stat-trips">-</p>
+            </div>
+            <div class="stat-card">
+              <h3>Zamówienia</h3>
+              <p class="stat-value" id="stat-orders">-</p>
+            </div>
+            <div class="stat-card">
+              <h3>Użytkownicy</h3>
+              <p class="stat-value" id="stat-users">-</p>
+            </div>
+            <div class="stat-card">
+              <h3>Newsletter</h3>
+              <p class="stat-value" id="stat-newsletter">-</p>
+            </div>
+            <div class="stat-card">
+              <h3>Przychód</h3>
+              <p class="stat-value" id="stat-revenue">-</p>
+            </div>
+            <div class="stat-card">
+              <h3>Oczekujące</h3>
+              <p class="stat-value" id="stat-pending">-</p>
+            </div>
+          </section>
+
+          <!-- Navigation Tabs -->
+          <nav class="admin-tabs">
+            <button class="tab-btn active" data-tab="orders">Zamówienia</button>
+            <button class="tab-btn" data-tab="trips">Wyjazdy</button>
+            <button class="tab-btn" data-tab="users">Użytkownicy</button>
+            <button class="tab-btn" data-tab="newsletter">Newsletter</button>
+            <button class="tab-btn" data-tab="content">Treści</button>
+          </nav>
+
+          <!-- Orders Tab -->
+          <div id="tab-orders" class="tab-content active">
+            <div class="table-controls">
+              <select id="orders-status-filter">
+                <option value="">Wszystkie statusy</option>
+                <option value="SUBMITTED">Złożone</option>
+                <option value="CONFIRMED">Potwierdzone</option>
+                <option value="CANCELLED">Anulowane</option>
+              </select>
+              <button id="orders-overdue-manual-btn" class="btn-secondary" type="button">
+                Zaległe rezerwacje
+              </button>
+            </div>
+            <div id="orders-table-container" class="table-container"></div>
+            <div id="orders-pagination" class="pagination"></div>
+          </div>
+
+          <!-- Trips Tab -->
+          <div id="tab-trips" class="tab-content">
+            <div class="table-controls">
+              <button id="add-trip-btn" class="btn-primary">+ Dodaj wyjazd</button>
+            </div>
+            <div id="trips-table-container" class="table-container"></div>
+            <div id="trips-pagination" class="pagination"></div>
+          </div>
+
+          <!-- Users Tab -->
+          <div id="tab-users" class="tab-content">
+            <div id="users-table-container" class="table-container"></div>
+            <div id="users-pagination" class="pagination"></div>
+          </div>
+
+          <!-- Newsletter Tab -->
+          <div id="tab-newsletter" class="tab-content">
+            <div class="table-controls">
+              <select id="newsletter-status-filter">
+                <option value="">Wszystkie statusy</option>
+                <option value="PENDING">Oczekujące</option>
+                <option value="CONFIRMED">Potwierdzone</option>
+                <option value="UNSUBSCRIBED">Wypisane</option>
+              </select>
+            </div>
+            <div id="newsletter-table-container" class="table-container"></div>
+            <div id="newsletter-pagination" class="pagination"></div>
+          </div>
+
+          <!-- Content Tab -->
+          <div id="tab-content" class="tab-content">
+            <div class="content-management">
+              <div class="content-layout">
+                <!-- Sidebar Navigation -->
+                <aside class="content-sidebar">
+                  <nav class="content-sidebar-nav">
+                    <div class="sidebar-menu-group">
+                      <button class="sidebar-menu-item" data-subpage="home">
+                        <span>Główna</span>
+                        <span class="menu-arrow">▼</span>
+                      </button>
+                      <div class="sidebar-submenu">
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="home"
+                          data-section="HOME_HERO"
+                        >
+                          Hero
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="home"
+                          data-section="HOME_UPCOMING_TRIPS"
+                        >
+                          Nadchodzące wyjazdy
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="home"
+                          data-section="HOME_HOW_IT_WORKS"
+                        >
+                          Jak to działa?
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="home"
+                          data-section="HOME_WHY_US"
+                        >
+                          Dlaczego my
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="home"
+                          data-section="HOME_NEWSLETTER"
+                        >
+                          Newsletter
+                        </button>
+                      </div>
+                    </div>
+                    <div class="sidebar-menu-group">
+                      <button class="sidebar-menu-item" data-subpage="dream-points">
+                        <span>Dream Points</span>
+                        <span class="menu-arrow">▼</span>
+                      </button>
+                      <div class="sidebar-submenu">
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="dream-points"
+                          data-section="DP_INTRO"
+                        >
+                          Wprowadzenie
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="dream-points"
+                          data-section="DP_HOW_MANY"
+                        >
+                          Ile punktów zbierasz?
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="dream-points"
+                          data-section="DP_VOUCHERS"
+                        >
+                          Jak wymieniasz DP na vouchery?
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="dream-points"
+                          data-section="DP_WHY_ACCOUNT"
+                        >
+                          Dlaczego warto założyć konto?
+                        </button>
+                      </div>
+                    </div>
+                    <div class="sidebar-menu-group">
+                      <button class="sidebar-menu-item" data-subpage="cooperation">
+                        <span>Współpraca</span>
+                        <span class="menu-arrow">▼</span>
+                      </button>
+                      <div class="sidebar-submenu">
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="cooperation"
+                          data-section="COOP_INTRO"
+                        >
+                          Wprowadzenie
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="cooperation"
+                          data-section="COOP_GALLERY"
+                        >
+                          Nasze realizacje
+                        </button>
+                        <button
+                          class="sidebar-submenu-item"
+                          data-subpage="cooperation"
+                          data-section="COOP_CONTACT"
+                        >
+                          Skontaktuj się z nami
+                        </button>
+                      </div>
+                    </div>
+                  </nav>
+                </aside>
+
+                <!-- Content Area -->
+                <div class="content-main">
+                  <div id="content-section-view" class="content-section-view">
+                    <h2 id="content-section-title" class="content-section-title"></h2>
+                    <div
+                      id="content-section-editor-container"
+                      class="content-section-editor-container"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="logout-btn" class="btn-secondary">Wyloguj</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Trip Modal -->
+    <div id="trip-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Dodaj wyjazd</h2>
+          <button id="trip-modal-close" class="modal-close">&times;</button>
+        </div>
+        <form id="trip-form" class="admin-form">
+          <div class="form-group">
+            <label for="trip-name">
+              Nazwa *
+              <span
+                class="tooltip-icon"
+                data-tooltip="Pełna nazwa wyjazdu wyświetlana na kartach wyjazdów i w karuzeli hero na stronie głównej. Slug (identyfikator URL) jest automatycznie generowany z nazwy."
+                >?</span
+              >
+            </label>
+            <input type="text" id="trip-name" name="name" required />
+          </div>
+
+          <div class="form-group">
+            <label for="trip-details">
+              Opis *
+              <span
+                class="tooltip-icon"
+                data-tooltip="Szczegółowy opis wyjazdu wyświetlany na kartach wyjazdów (strona główna, DIY). Zawiera informacje o miejscu, długości, hotelu, bilecie itp."
+                >?</span
+              >
+            </label>
+            <textarea id="trip-details" name="details" rows="4" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="trip-extended-description">
+              Opis rozszerzony *
+              <span
+                class="tooltip-icon"
+                data-tooltip="Szczegółowy opis wyjazdu wyświetlany na stronie szczegółów wyjazdu. Można formatować tekst (pogrubienie, kursywa, listy, akapity). To pole jest obowiązkowe i wyświetlane na stronie szczegółów wyjazdu."
+                >?</span
+              >
+            </label>
+            <div id="trip-extended-description-editor" style="min-height: 300px"></div>
+            <input
+              type="hidden"
+              id="trip-extended-description"
+              name="extendedDescription"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="trip-tag">
+                Tag *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Krótki tag wyświetlany jako nagłówek w karuzeli hero na stronie głównej (np. 'El Clásico • Hiszpania')."
+                  >?</span
+                >
+              </label>
+              <input type="text" id="trip-tag" name="tag" required />
+            </div>
+            <div class="form-group">
+              <label for="trip-meta">
+                Meta (krótki opis) *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Krótki opis wyświetlany w karuzeli hero na stronie głównej (np. 'Barcelona • 4 dni • max 20 osób • sektor premium')."
+                  >?</span
+                >
+              </label>
+              <input type="text" id="trip-meta" name="meta" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="trip-starts-at">
+                Data rozpoczęcia *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Data i godzina rozpoczęcia wyjazdu. Używana do sortowania i wyświetlania w sekcji 'Nadchodzące wyjazdy'."
+                  >?</span
+                >
+              </label>
+              <input type="date" id="trip-starts-at" name="startsAt" required />
+            </div>
+            <div class="form-group">
+              <label for="trip-ends-at">
+                Data zakończenia *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Data i godzina zakończenia wyjazdu. Musi być późniejsza niż data rozpoczęcia."
+                  >?</span
+                >
+              </label>
+              <input type="date" id="trip-ends-at" name="endsAt" required />
+            </div>
+          </div>
+
+          <!-- Sekcja miejsc wylotu -->
+          <div class="form-group">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+              "
+            >
+              <label style="margin: 0; font-weight: 600">
+                Miejsca wylotu *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Miejsca wylotu dla tego wyjazdu. Każde miejsce wylotu ma swoją cenę. Na stronie wyjazdu użytkownik będzie mógł wybrać miejsce wylotu, a cena dostosuje się automatycznie. Na kartach wyjazdów wyświetlana będzie najtańsza cena z dostępnych miejsc wylotu."
+                  >?</span
+                >
+              </label>
+              <button
+                type="button"
+                id="add-departure-point-btn"
+                class="btn-primary"
+                style="padding: 6px 12px; font-size: 14px"
+              >
+                + Dodaj miejsce wylotu
+              </button>
+            </div>
+            <div
+              id="departure-points-container"
+              style="
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                padding: 12px;
+                background: rgba(255, 255, 255, 0.02);
+                min-height: 60px;
+              "
+            >
+              <!-- Pusty komunikat będzie tworzony dynamicznie przez JavaScript -->
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="trip-spots-label">
+                Etykieta miejsc
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Ręczna etykieta miejsc wyświetlana na kartach wyjazdów i w karuzeli hero (np. '30/30', 'Lista zainteresowanych', 'Sprawdź dostępność'). Używana tylko jeśli nie włączone jest automatyczne wyświetlanie miejsc."
+                  >?</span
+                >
+              </label>
+              <input type="text" id="trip-spots-label" name="spotsLabel" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="trip-capacity">
+                Liczba miejsc *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Maksymalna liczba miejsc na wyjazd. Używana do automatycznego wyświetlania dostępności (seatsLeft/capacity) jeśli włączone jest automatyczne wyświetlanie miejsc."
+                  >?</span
+                >
+              </label>
+              <input type="number" id="trip-capacity" name="capacity" min="0" required />
+            </div>
+            <div class="form-group">
+              <label for="trip-seats-left">
+                Wolne miejsca *
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Liczba wolnych miejsc. Używana do automatycznego wyświetlania dostępności (seatsLeft/capacity) jeśli włączone jest automatyczne wyświetlanie miejsc. Nie może być większa niż pojemność."
+                  >?</span
+                >
+              </label>
+              <input type="number" id="trip-seats-left" name="seatsLeft" min="0" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+              <input type="checkbox" id="trip-use-auto-spots-label" name="useAutoSpotsLabel" />
+              <span>Użyj automatycznego wyświetlania miejsc</span>
+              <span
+                class="tooltip-icon"
+                data-tooltip="Jeśli zaznaczone, zamiast ręcznej etykiety miejsc wyświetlana będzie automatyczna dostępność w formacie 'seatsLeft/capacity' (np. '28/30'). Wymaga wypełnienia pól 'Pojemność' i 'Wolne miejsca'."
+                >?</span
+              >
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="trip-hotel-class">
+              Klasa hotelu *
+              <span
+                class="tooltip-icon"
+                data-tooltip="Wybierz klasę hotelu od 1 do 5 gwiazdek. Klasa hotelu jest przypisana do całego wyjazdu, nie do miejsca wylotu."
+                >?</span
+              >
+            </label>
+            <div id="hotel-class-stars" class="hotel-class-stars" style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+              <button type="button" class="star-btn" data-rating="1" aria-label="1 gwiazdka">★</button>
+              <button type="button" class="star-btn" data-rating="2" aria-label="2 gwiazdki">★</button>
+              <button type="button" class="star-btn" data-rating="3" aria-label="3 gwiazdki">★</button>
+              <button type="button" class="star-btn" data-rating="4" aria-label="4 gwiazdki">★</button>
+              <button type="button" class="star-btn" data-rating="5" aria-label="5 gwiazdek">★</button>
+            </div>
+            <input type="hidden" id="trip-hotel-class" name="hotelClass" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="trip-hero-image">
+                Obraz hero
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Obraz wyświetlany w karuzeli hero na stronie głównej. Obraz powinien być duży i wysokiej jakości."
+                  >?</span
+                >
+              </label>
+              <input type="file" id="trip-hero-image" name="heroImage" accept="image/*" />
+              <div
+                id="trip-hero-image-preview"
+                class="image-preview"
+                style="display: none; margin-top: 8px"
+              >
+                <img
+                  id="trip-hero-image-preview-img"
+                  src=""
+                  alt="Podgląd obrazu hero"
+                  style="max-width: 100%; max-height: 200px; border-radius: 4px"
+                />
+                <button
+                  type="button"
+                  id="trip-hero-image-remove"
+                  class="btn-remove-image"
+                  style="margin-top: 8px"
+                >
+                  Usuń obraz
+                </button>
+              </div>
+              <input type="hidden" id="trip-hero-image-path" name="heroImagePath" />
+            </div>
+            <div class="form-group">
+              <label for="trip-card-image">
+                Obraz karty
+                <span
+                  class="tooltip-icon"
+                  data-tooltip="Obraz wyświetlany na kartach wyjazdów na stronie głównej i DIY. Obraz powinien być mniejszy niż hero."
+                  >?</span
+                >
+              </label>
+              <input type="file" id="trip-card-image" name="cardImage" accept="image/*" />
+              <div
+                id="trip-card-image-preview"
+                class="image-preview"
+                style="display: none; margin-top: 8px"
+              >
+                <img
+                  id="trip-card-image-preview-img"
+                  src=""
+                  alt="Podgląd obrazu karty"
+                  style="max-width: 100%; max-height: 200px; border-radius: 4px"
+                />
+                <button
+                  type="button"
+                  id="trip-card-image-remove"
+                  class="btn-remove-image"
+                  style="margin-top: 8px"
+                >
+                  Usuń obraz
+                </button>
+              </div>
+              <input type="hidden" id="trip-card-image-path" name="cardImagePath" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+              <input type="checkbox" id="trip-is-featured" name="isFeatured" />
+              <span>Wyróżniony wyjazd</span>
+              <span
+                class="tooltip-icon"
+                data-tooltip="Jeśli zaznaczone, wyjazd będzie wyświetlany w karuzeli hero na stronie głównej. Tylko wyróżnione wyjazdy są pokazywane w karuzeli."
+                >?</span
+              >
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" id="trip-form-cancel">Anuluj</button>
+            <button type="submit" class="btn-primary">Zapisz</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Template dla miejsca wylotu (ukryty) -->
+    <template id="departure-point-template">
+      <div class="departure-point-item" data-departure-point-id="">
+        <div style="display: flex; gap: 12px; align-items: flex-start">
+          <div style="flex: 1">
+            <div class="form-row" style="margin-bottom: 0">
+              <div class="form-group" style="flex: 1">
+                <label style="font-size: 13px; margin-bottom: 4px">Miasto wylotu *</label>
+                <input
+                  type="text"
+                  class="departure-point-city"
+                  placeholder="np. Warszawa"
+                  required
+                  style="width: 100%"
+                />
+              </div>
+              <div class="form-group" style="flex: 1">
+                <label style="font-size: 13px; margin-bottom: 4px">Cena (zł) *</label>
+                <input
+                  type="number"
+                  class="departure-point-price"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  required
+                  style="width: 100%"
+                />
+              </div>
+              <div class="form-group" style="flex: 0 0 100px">
+                <label style="font-size: 13px; margin-bottom: 4px">Kolejność</label>
+                <input
+                  type="number"
+                  class="departure-point-sort-order"
+                  min="0"
+                  value="0"
+                  style="width: 100%"
+                />
+              </div>
+            </div>
+            <div style="margin-top: 8px">
+              <label
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                "
+              >
+                <input type="checkbox" class="departure-point-active" checked />
+                <span>Aktywne</span>
+              </label>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <button
+              type="button"
+              class="btn-remove-departure-point"
+              style="
+                padding: 6px 12px;
+                font-size: 12px;
+                background: #dc2626;
+                border: none;
+                border-radius: 4px;
+                color: white;
+                cursor: pointer;
+              "
+            >
+              Usuń
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script type="module" src="/src/pages/admin.ts"></script>
+  </body>
+</html>

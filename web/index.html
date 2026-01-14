@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dream Travel Sport</title>
+    <meta
+      name="description"
+      content="Dream Travel Sport – małe, premium wyjazdy na mecze. Lot, hotel, bilet i ubezpieczenie w jednym pakiecie. Mecz, miasto i ekipa, którą zapamiętasz."
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/src/styles/pages/index.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo-wrap">
+        <a href="index.html">
+          <img src="assets/brand/logo-dts.png" alt="Dream Travel Sport Logo" />
+          <div class="brand-text">
+            <span>Dream Travel Sport</span>
+            <span>sportowe wyjazdy premium</span>
+          </div>
+        </a>
+        <div class="brand-extra">
+          <div class="brand-extra-phone">Tel: +48 793 020 092</div>
+          <div class="brand-extra-socials">
+            <span>Śledź nas:</span>
+            <a
+              href="https://www.facebook.com/dreamtravelsport"
+              class="social-badge social-fb"
+              target="_blank"
+              rel="noopener"
+              aria-label="Facebook"
+            >
+              <i class="fa-brands fa-facebook-f"></i>
+            </a>
+            <a
+              href="https://www.instagram.com/dreamtravelsport"
+              class="social-badge social-ig"
+              target="_blank"
+              rel="noopener"
+              aria-label="Instagram"
+            >
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button class="mobile-menu-toggle" aria-label="Menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="nav-right">
+        <nav class="main-nav">
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="nav-cta">
+          <a class="btn-primary" href="#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="mobile-menu-overlay"></div>
+      <div class="mobile-menu">
+        <nav>
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="mobile-nav-cta">
+          <a class="btn-primary" href="#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="hero-badges" data-content-section="HOME_HERO" data-content-field="badges">
+          <div class="badge">Małe grupy max 20 osób</div>
+          <div class="badge">Lot + hotel + bilet + ubezpieczenie</div>
+          <div class="badge">Dream Points – punkty za każdy wyjazd</div>
+        </div>
+        <h1 data-content-section="HOME_HERO" data-content-field="title">
+          Sportowe wyjazdy <span>Dream&nbsp;Travel&nbsp;Sport</span><br />
+          Mecz, miasto i ekipa, którą pamiętasz latami.
+        </h1>
+        <p data-content-section="HOME_HERO" data-content-field="description">
+          Organizujemy 3–4-dniowe city breaki na największe stadiony Europy. Lecisz w małej,
+          ogarniętej grupie – my ogarniamy lot, hotel, bilet i ubezpieczenie. Ty bierzesz tylko
+          plecak. Do tego zbierasz <strong>Dream Points</strong> – punkty, które obniżają koszt
+          kolejnych wyjazdów.
+          <a class="u-link-gold-underline" href="dream-points.html">Sprawdź jak działają.</a>
+        </p>
+        <p class="hero-note" data-content-section="HOME_HERO" data-content-field="note">
+          Lubisz sam ogarniać loty, hotel i bilety? Wkrótce pojawi się poradnik samodzielnych
+          wyjazdów na mecze.
+        </p>
+        <div class="hero-cta">
+          <a
+            class="btn-primary"
+            href="#oferta"
+            data-content-section="HOME_HERO"
+            data-content-field="ctaText"
+            >Zobacz wyjazdy</a
+          >
+          <span data-content-section="HOME_HERO" data-content-field="ctaSubtext"
+            >Albo zapisz się do newslettera i łap info o nowych terminach.</span
+          >
+        </div>
+      </div>
+
+      <!-- HERO SLIDER -->
+      <div id="hero-visual" class="hero-visual">
+        <div class="hero-visual-overlay">
+          <div class="hero-top-block">
+            <div id="hero-tag" class="hero-tag"></div>
+            <div id="hero-match" class="hero-match"></div>
+            <div id="hero-date" class="hero-date"></div>
+            <div id="hero-meta" class="hero-meta"></div>
+          </div>
+
+          <div class="hero-bottom-block">
+            <div class="hero-bottom-row">
+              <div class="price-actions">
+                <div id="hero-spots" class="pill"></div>
+                <a id="hero-cta" class="pill-cta" href="koszyk.html">Do koszyka</a>
+              </div>
+              <div id="hero-price" class="pill"></div>
+            </div>
+
+            <div class="hero-slider-controls">
+              <button type="button" class="hero-arrow" id="hero-prev">&#10094;</button>
+              <div class="hero-dots" id="hero-dots"></div>
+              <button type="button" class="hero-arrow" id="hero-next">&#10095;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <main>
+      <section id="oferta">
+        <h2 data-content-section="HOME_UPCOMING_TRIPS" data-content-field="title">
+          Nadchodzące wyjazdy
+        </h2>
+        <p
+          id="oferta-subtitle"
+          class="section-subtitle"
+          data-content-section="HOME_UPCOMING_TRIPS"
+          data-content-field="subtitle"
+        >
+          Na start kilka topowych kierunków. Małe grupy, dopracowana logistyka, czas wolny na własne
+          tempo i jedno wspólne spotkanie w mieście.
+        </p>
+        <div class="grid">
+          <!-- Karty będą renderowane przez JavaScript z danych z API -->
+        </div>
+      </section>
+
+      <section id="jak-dzialamy">
+        <h2 data-content-section="HOME_HOW_IT_WORKS" data-content-field="title">Jak to działa?</h2>
+        <p
+          class="section-subtitle"
+          data-content-section="HOME_HOW_IT_WORKS"
+          data-content-field="subtitle"
+        >
+          Prosty proces, zero spiny. Od pierwszej wiadomości do powrotu do domu wiesz dokładnie, co,
+          kiedy i za ile.
+        </p>
+        <div class="card steps">
+          <div class="step">
+            <div class="step-badge">1</div>
+            <div class="step-content">
+              <h3>Wybierasz mecz i miasto</h3>
+              <p>
+                Kontaktujesz się z nami, mówisz skąd lecisz i na jaki mecz chcesz jechać. Sprawdzamy
+                dostępność miejsc i przygotowujemy propozycję.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-badge">2</div>
+            <div class="step-content">
+              <h3>Rezerwacja pakietu</h3>
+              <p>
+                Po akceptacji oferty podpisujemy umowę, wpłacasz zaliczkę i dostajesz wszystkie
+                szczegóły – lot, hotel, bilety, ubezpieczenie, plan dnia.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-badge">3</div>
+            <div class="step-content">
+              <h3>Lecisz z ekipą</h3>
+              <p>
+                Na miejscu masz wspólny transfer, jedno spotkanie integracyjne i pełną swobodę w
+                czasie wolnym. My jesteśmy w tle, gdy trzeba coś ogarnąć.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-badge">4</div>
+            <div class="step-content">
+              <h3>Wracasz z historiami, nie problemami</h3>
+              <p>
+                W razie zmian lotów, opóźnień czy innych akcji – to my rozwiązujemy sytuację. Ty
+                masz przeżyć wyjazd, nie walczyć z linią lotniczą.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dlaczego">
+        <h2 data-content-section="HOME_WHY_US" data-content-field="title">
+          Dlaczego Dream Travel Sport?
+        </h2>
+        <p
+          class="section-subtitle"
+          data-content-section="HOME_WHY_US"
+          data-content-field="subtitle"
+        >
+          Nie jesteśmy masowym biurem. Stawiamy na małe grupy, sportowy klimat i uczciwą
+          komunikację.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <h3>Małe, ogarnięte grupy</h3>
+            <p>
+              Maksymalnie 20 osób. Po dwóch dniach znacie się po imieniu, macie własne inside joke’i
+              i wspólne zdjęcia ze stadionu.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Transparentna oferta</h3>
+            <p>
+              Wiesz, co wchodzi w cenę: lot, nocleg, bilet, ubezpieczenie, opieka. Bez ukrytych
+              „dopłat obowiązkowych” i gwiazdek drobnym drukiem.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Fokus na vibe miasta</h3>
+            <p>
+              Mecz to serce wyjazdu, ale resztę czasu spędzasz, poznając miasto – jedzenie, bary,
+              spacery, zdjęcia. Nie gonimy z chorągiewką.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Dream Points – Twój rabat na kolejne wyjazdy</h3>
+            <p>
+              Za każdy wyjazd zbierasz <strong>Dream Points</strong>. Punkty działają jak złotówki –
+              wymieniasz je na vouchery i obniżasz koszt kolejnych wyjazdów. Zapraszasz znajomych?
+              Dostajesz dodatkowe punkty za polecenia.
+              <a class="u-link-gold-underline" href="dream-points.html">Zobacz zasady programu.</a>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEKCJA DIY - ZAKOMENTOWANA (do przywrócenia w przyszłości) -->
+      <!--
+      <section id="diy-travel">
+        <h2>DIY Travel – zorganizuj wyjazd samodzielnie</h2>
+        <p class="section-subtitle">
+          Lubisz sam grzebać w lotach, hotelach i biletach? W dziale
+          <strong>DIY Travel</strong> pokazuję krok po kroku, jak ogarnąć wyjazd na mecz
+          samodzielnie: loty, noclegi, bilety, checklisty i krótkie wideo-tutoriale.
+        </p>
+        <div class="grid">
+          <article class="card">
+            <h3>Jak znaleźć tanie loty?</h3>
+            <p>
+              Google Flights, alerty cenowe, alternatywne lotniska, przesiadki, dni z najniższą
+              ceną. Konkretny poradnik z przykładowymi trasami na Hiszpanię i Włochy.
+            </p>
+            <a class="pill-cta" href="diy.html#loty">Czytaj poradnik o lotach</a>
+          </article>
+
+          <article class="card">
+            <h3>Jak wybrać hotel blisko stadionu?</h3>
+            <p>
+              Jak dobrać lokalizację, żeby mieć sensowny dojazd na stadion, ale nie przepłacić.
+              Przykładowe dzielnice w Barcelonie, Mediolanie i Madrycie + pro tipy.
+            </p>
+            <a class="pill-cta" href="diy.html#hotele">Czytaj poradnik o hotelach</a>
+          </article>
+
+          <article class="card">
+            <h3>Jak kupić bilet na mecz bez scamu?</h3>
+            <p>
+              Oficjalne sklepy klubów, sprzedaż otwarta vs członkowie, hospitality, czego unikać.
+              Przykłady: FC Barcelona, Real Madryt, Inter / AC Milan.
+            </p>
+            <a class="pill-cta" href="diy.html#bilety">Czytaj poradnik o biletach</a>
+          </article>
+        </div>
+        <p class="section-subtitle u-mt-20">
+          A jeśli nie chcesz się w to bawić i wolisz mieć spokojną głowę – po prostu wybierz jeden z
+          naszych gotowych wyjazdów.
+          <a class="u-link-gold-underline" href="#oferta">Sprawdź aktualne terminy.</a>
+        </p>
+      </section>
+      -->
+
+      <section id="kontakt">
+        <h2>Newsletter Dream Travel Sport</h2>
+        <p class="section-subtitle">
+          Zostaw maila, a dam Ci znać, gdy odpalimy konkretne wyjazdy (Barcelona, Mediolan, Madryt i
+          kolejne). Zero spamu, tylko piłka i terminy.
+        </p>
+        <div class="card contact-card">
+          <div>
+            <form id="newsletter-form">
+              <div>
+                <label>Imię</label>
+                <input type="text" name="name" placeholder="Jan" />
+              </div>
+              <div>
+                <label>Adres e-mail</label>
+                <input type="email" name="email" placeholder="jan@twojmail.pl" required />
+              </div>
+              <div>
+                <label>
+                  <input class="u-checkbox-inline" type="checkbox" required />
+                  Zgadzam się na otrzymywanie newslettera Dream Travel Sport (mogę wypisać się w
+                  każdej chwili).
+                </label>
+              </div>
+              <div>
+                <button type="submit" class="btn-primary">Zapisz do newslettera</button>
+              </div>
+            </form>
+
+            <div id="newsletter-success" class="newsletter-success">
+              <span>
+                <strong>Dziękuję!</strong> Zostałeś zapisany do newslettera Dream Travel Sport.
+              </span>
+              <button type="button" id="newsletter-go-to-trips">Sprawdź wyjazdy</button>
+            </div>
+          </div>
+
+          <div>
+            <p class="contact-prompt">Masz konkretne pytanie?</p>
+            <p class="contact-email"><strong>E-mail:</strong> kontakt@dreamtravelsport.pl</p>
+            <p class="contact-phone"><strong>Telefon:</strong> +48 793 020 092</p>
+            <p class="contact-hours">
+              Najczęściej odpisuję w godzinach 9:00–18:00. Po tym czasie jest szansa, że siedzę na
+              stadionie ✈️⚽.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      © 2025 Dream Travel Sport – sportowe wyjazdy premium. Wszystkie prawa zastrzeżone.
+      <br />
+      <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline; margin-top: 8px; display: inline-block;">Regulamin</a>
+    </footer>
+
+    <script type="module" src="src/utils/mobile-menu.ts"></script>
+    <script type="module" src="src/features/cart/badge.ts"></script>
+    <script type="module" src="src/pages/index.ts"></script>
+  </body>
+</html>

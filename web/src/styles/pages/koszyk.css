@@ -1,0 +1,449 @@
+@import "../base.css";
+@import "../components/header.css";
+@import "../components/buttons.css";
+@import "../components/notifications.css";
+@import "../components/form-validation.css";
+@import "../components/loading.css";
+
+.cart-link {
+  background: rgba(0,0,0,0.25);
+}
+
+main {
+  max-width: 1100px;
+  margin: 32px auto 80px;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+}
+h1 { font-size:28px; margin-bottom:8px; }
+.muted { color:var(--dt-muted); font-size:14px; margin-bottom:24px; }
+.muted--mb-10 { margin-bottom:10px; }
+
+.cart-section-title { font-size:18px; margin-bottom:10px; }
+
+.cart-card {
+  background:rgba(4,12,24,0.9);
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,0.06);
+  padding:18px 18px 20px;
+  box-shadow:0 18px 40px rgba(0,0,0,0.6);
+  margin-bottom:24px;
+}
+.cart-card--mt-24 { margin-top:24px; }
+
+table.cart-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+table.cart-table th,
+table.cart-table td {
+  padding:10px 6px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+table.cart-table th { text-align:left; font-weight:600; color:var(--dt-muted); }
+table.cart-table td:last-child,
+table.cart-table th:last-child { text-align:right; }
+
+.cart-empty-cell {
+  padding: 16px 6px;
+  text-align: center;
+  color: #9aa4b8;
+}
+
+.cart-empty-cell a {
+  color: #f6b41c;
+}
+
+.qty-select {
+  padding:4px 6px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(3,10,22,0.9);
+  color:var(--dt-light);
+}
+
+.cart-summary {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:16px;
+  font-size:15px;
+}
+.cart-summary strong { color:var(--dt-gold); }
+
+#cart-total-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+#cart-total-price .price-old {
+  color: var(--dt-muted);
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+/* Przycisk podglądu oferty */
+.btn-preview-offer {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--dt-light);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+  width: auto;
+}
+
+.btn-preview-offer:hover {
+  background: rgba(0, 0, 0, 0.28);
+  border-color: rgba(246, 180, 28, 0.55);
+}
+
+.btn-preview-offer:active {
+  transform: translateY(1px);
+}
+
+.btn-preview-offer:focus-visible {
+  outline: none;
+  border-color: rgba(246, 180, 28, 0.85);
+  box-shadow: 0 0 0 3px rgba(246, 180, 28, 0.18);
+}
+
+.btn-preview-offer:disabled,
+.btn-preview-offer[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.preview-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.preview-text {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+#cart-total-price .price-new {
+  color: var(--dt-gold);
+  font-weight: 700;
+}
+
+.two-cols {
+  display:grid;
+  grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);
+  gap:20px;
+}
+
+.field-group { margin-bottom:10px; }
+.field-group label { display:block; font-size:13px; margin-bottom:4px; }
+.field-group input, .field-group select {
+  width:100%; padding:8px 10px; border-radius:10px;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(3,10,22,0.9); color:var(--dt-light); font-size:14px;
+}
+.field-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+  cursor: pointer;
+}
+.field-group input[type="checkbox"].field-error {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+.field-group label[style*="display: flex"] {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.checkboxes-group {
+  padding: 12px;
+  background: rgba(3, 10, 22, 0.3);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.passengers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.passengers-item-section {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(3, 10, 22, 0.5);
+  padding: 20px;
+}
+
+.passengers-item-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.passengers-item-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dt-light);
+  margin: 0 0 8px 0;
+}
+
+.passengers-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--dt-muted);
+}
+
+.passengers-item-meta span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.passengers-item-cards {
+  display: grid;
+  gap: 12px;
+}
+
+.passenger-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(3, 10, 22, 0.7);
+}
+
+.passenger-card-title {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--dt-muted);
+  font-weight: 500;
+}
+
+.payment-methods {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:14px;
+  margin-top:6px;
+}
+.payment-methods label {
+  display:flex; align-items:center; gap:6px;
+}
+
+.btn-order {
+  margin-top:16px;
+  width:100%;
+  padding:12px;
+  border-radius:999px;
+  border:none;
+  background:var(--dt-gold);
+  color:#111;
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.info-box {
+  margin-top:8px;
+  font-size:12px;
+  color:var(--dt-muted);
+}
+
+footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 32px 26px;
+  font-size: 12px;
+  color: var(--dt-muted);
+  text-align: center;
+  background: #020712;
+}
+
+@media(max-width:840px){
+  main{
+    padding: 0 16px;
+    margin: 24px auto 60px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .muted {
+    font-size: 13px;
+  }
+
+  .cart-card {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .two-cols{
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  /* Na mobile rozdziel sekcje, aby móc kontrolować ich kolejność */
+  /* Użyj display: contents, aby dzieci #checkout-forms były traktowane jako bezpośrednie dzieci main */
+  #checkout-forms {
+    display: contents;
+  }
+
+  /* Kolejność sekcji na mobile: 1. Dane rezerwującego, 2. Uczestnicy, 3. Płatność */
+  #checkout-forms .cart-card:first-child {
+    order: 1;
+    margin-bottom: 20px;
+  }
+
+  #passengers-section {
+    order: 2;
+  }
+
+  #checkout-forms .cart-card:last-child {
+    order: 3;
+  }
+
+  /* Przekształć tabelę w układ kart na mobile */
+  table.cart-table {
+    display: block;
+  }
+
+  table.cart-table thead {
+    display: none;
+  }
+
+  table.cart-table tbody {
+    display: block;
+  }
+
+  table.cart-table tr {
+    display: block;
+    background: rgba(3, 10, 22, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  table.cart-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: left !important;
+  }
+
+  table.cart-table td:last-child {
+    border-bottom: none;
+    justify-content: flex-end;
+  }
+
+  table.cart-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--dt-muted);
+    margin-right: 12px;
+    flex-shrink: 0;
+    min-width: 100px;
+    font-size: 12px;
+  }
+
+  /* Klasa hotelu - gwiazdki na mobile */
+  table.cart-table td .hotel-stars {
+    justify-content: flex-end;
+  }
+
+  table.cart-table td:last-child::before {
+    display: none;
+  }
+
+  /* Przycisk usuń na mobile */
+  table.cart-table td:last-child button {
+    font-size: 28px;
+    padding: 4px 12px;
+  }
+
+  .cart-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .field-group {
+    margin-bottom: 12px;
+  }
+
+  .field-group input,
+  .field-group select {
+    font-size: 16px; /* Zapobiega zoom na iOS */
+  }
+
+  .checkboxes-group {
+    padding: 16px;
+  }
+
+  .passengers-item-section {
+    padding: 16px;
+  }
+
+  .passenger-card {
+    padding: 12px;
+  }
+
+  .btn-order {
+    font-size: 12px;
+    padding: 14px;
+  }
+
+  footer {
+    padding: 16px 20px 20px;
+    font-size: 11px;
+  }
+}
+
+@media(max-width:480px){
+  main {
+    padding: 0 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .cart-card {
+    padding: 12px;
+  }
+
+  table.cart-table td::before {
+    min-width: 80px;
+    font-size: 12px;
+  }
+
+  table.cart-table td {
+    font-size: 13px;
+    padding: 6px 0;
+  }
+}
+
+

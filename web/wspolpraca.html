@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Współpraca | Dream Travel Sport</title>
+    <meta
+      name="description"
+      content="Współpraca z Dream Travel Sport"
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/src/styles/pages/wspolpraca.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo-wrap">
+        <a href="index.html">
+          <img src="assets/brand/logo-dts.png" alt="Dream Travel Sport Logo" />
+          <div class="brand-text">
+            <span>Dream Travel Sport</span>
+            <span>sportowe wyjazdy premium</span>
+          </div>
+        </a>
+        <div class="brand-extra">
+          <div class="brand-extra-phone">Tel: +48 793 020 092</div>
+          <div class="brand-extra-socials">
+            <span>Śledź nas:</span>
+            <a
+              href="https://www.facebook.com/dreamtravelsport"
+              class="social-badge social-fb"
+              target="_blank"
+              rel="noopener"
+              aria-label="Facebook"
+            >
+              <i class="fa-brands fa-facebook-f"></i>
+            </a>
+            <a
+              href="https://www.instagram.com/dreamtravelsport"
+              class="social-badge social-ig"
+              target="_blank"
+              rel="noopener"
+              aria-label="Instagram"
+            >
+              <i class="fa-brands fa-instagram"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button class="mobile-menu-toggle" aria-label="Menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="nav-right">
+        <nav class="main-nav">
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="mobile-menu-overlay"></div>
+      <div class="mobile-menu">
+        <nav>
+          <a href="index.html#dlaczego">Dlaczego my</a>
+          <a href="dream-points.html">Dream Points</a>
+          <a href="wspolpraca.html">Współpraca</a>
+        </nav>
+        <div class="mobile-nav-cta">
+          <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
+          <a class="cart-link" href="koszyk.html" aria-label="Koszyk">
+            <span class="cart-icon-wrap">
+              <span class="cart-icon">🛒</span>
+              <span class="cart-badge" data-cart-badge aria-hidden="true"></span>
+            </span>
+            <span>Koszyk</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro-section" data-content-section="COOP_INTRO">
+        <h1 data-content-field="title">Współpraca</h1>
+        <div data-content-field="paragraphs">
+          <p class="section-subtitle">
+            Dream Travel Sport to miejsce, gdzie pasja do sportu spotyka się z profesjonalną organizacją wyjazdów. 
+            Zapraszamy do współpracy firmy, marki i organizacje, które chcą dotrzeć do zaangażowanej społeczności 
+            miłośników sportu.
+          </p>
+          <p>
+            Oferujemy kompleksowe rozwiązania w zakresie organizacji wyjazdów sportowych, eventów firmowych oraz 
+            programów lojalnościowych. Nasza oferta obejmuje zarówno indywidualne wyjazdy na mecze, jak i większe 
+            projekty dla grup korporacyjnych.
+          </p>
+          <p>
+            Jeśli jesteś zainteresowany współpracą, skontaktuj się z nami poprzez formularz poniżej. 
+            Chętnie omówimy szczegóły i przygotujemy ofertę dopasowaną do Twoich potrzeb.
+          </p>
+        </div>
+      </section>
+
+      <section class="gallery-section" data-content-section="COOP_GALLERY">
+        <h2 data-content-field="title">Nasze realizacje</h2>
+        <p class="section-subtitle" data-content-field="subtitle">
+          Zobacz, jak organizujemy wyjazdy i eventy dla naszych partnerów.
+        </p>
+        <div id="gallery-slider" class="gallery-slider">
+          <div class="gallery-slider-overlay"></div>
+          <div class="gallery-slider-controls">
+            <button type="button" class="gallery-arrow" id="gallery-prev">&#10094;</button>
+            <div class="gallery-dots" id="gallery-dots"></div>
+            <button type="button" class="gallery-arrow" id="gallery-next">&#10095;</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-section" data-content-section="COOP_CONTACT">
+        <h2 data-content-field="title">Skontaktuj się z nami</h2>
+        <p class="section-subtitle" data-content-field="subtitle">
+          Wypełnij formularz, a my skontaktujemy się z Tobą w ciągu 24 godzin.
+        </p>
+        <div class="contact-card">
+          <form id="contact-form" class="contact-form">
+            <div>
+              <label for="contact-name">Imię i nazwisko</label>
+              <input type="text" id="contact-name" name="name" placeholder="Jan Kowalski" required />
+            </div>
+            <div>
+              <label for="contact-email">Adres e-mail</label>
+              <input type="email" id="contact-email" name="email" placeholder="jan.kowalski@firma.pl" required />
+            </div>
+            <div>
+              <label for="contact-company">Nazwa firmy (opcjonalnie)</label>
+              <input type="text" id="contact-company" name="company" placeholder="Nazwa firmy" />
+            </div>
+            <div>
+              <label for="contact-phone">Telefon</label>
+              <input type="tel" id="contact-phone" name="phone" placeholder="+48 793 020 092" />
+            </div>
+            <div>
+              <label for="contact-message">Wiadomość</label>
+              <textarea id="contact-message" name="message" placeholder="Opisz, w jaki sposób chciałbyś współpracować..." required></textarea>
+            </div>
+            <button type="submit" class="btn-primary">Wyślij wiadomość</button>
+          </form>
+
+          <div class="contact-info">
+            <div>
+              <h3>Dane kontaktowe</h3>
+              <p>
+                <strong>E-mail:</strong><br>
+                <a href="mailto:kontakt@dreamtravelsport.pl" class="u-link-gold-underline">kontakt@dreamtravelsport.pl</a>
+              </p>
+              <p>
+                <strong>Telefon:</strong><br>
+                +48 793 020 092
+              </p>
+              <p>
+                <strong>Godziny pracy:</strong><br>
+                Poniedziałek - Piątek: 9:00 - 18:00
+              </p>
+            </div>
+            <div>
+              <h3>Formy współpracy</h3>
+              <p>
+                • Organizacja wyjazdów grupowych<br>
+                • Eventy firmowe i integracyjne<br>
+                • Programy lojalnościowe<br>
+                • Sponsoring i partnerstwa<br>
+                • Współpraca z markami sportowymi
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div id="contact-success" class="contact-success"></div>
+      </section>
+    </main>
+
+    <footer>
+      © 2025 Dream Travel Sport – sportowe wyjazdy premium. Wszystkie prawa zastrzeżone.
+      <br />
+      <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline; margin-top: 8px; display: inline-block;">Regulamin</a>
+    </footer>
+
+    <script type="module" src="src/utils/mobile-menu.ts"></script>
+    <script type="module" src="src/features/cart/badge.ts"></script>
+    <script type="module">
+      import { initGallerySlider, initContactForm } from "./src/pages/wspolpraca.ts";
+      initGallerySlider();
+      initContactForm();
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TripAvailability {
+  OPEN
+  WAITLIST
+  CLOSED
+}
+
+enum TripMediaKind {
+  HERO
+  CARD
+  GALLERY
+}
+
+// Trip = jedno wydarzenie (jedna karta w UI) z własną ceną/terminem/miejscami.
+model Trip {
+  id        String @id @default(cuid())
+  slug      String @unique
+
+  name      String
+  details   String
+  extendedDescription String // Opis rozszerzony wyświetlany na stronie szczegółów wyjazdu (HTML) - obowiązkowy
+  tag       String
+  meta      String
+
+  startsAt  DateTime
+  endsAt    DateTime
+
+  currency  String @default("PLN")
+  // Deprecated: Używaj DeparturePoint.priceCents zamiast tego - zachowane dla kompatybilności wstecznej
+  priceCents Int?
+
+  // Placeholder / etap 1: pola do wyświetlania dostępności.
+  // Docelowo seatsLeft będzie wynikało z zamówień i capacity.
+  capacity     Int
+  seatsLeft    Int
+  availability TripAvailability @default(OPEN)
+  spotsLabel   String?
+  
+  // Jeśli true, wyświetlaj automatycznie "seatsLeft/capacity", w przeciwnym razie użyj spotsLabel
+  useAutoSpotsLabel Boolean @default(false)
+
+  // Klasa hotelu (1-5 gwiazdek)
+  hotelClass Int? // 1-5, null = nieokreślona
+
+  isFeatured   Boolean @default(false)
+  isActive     Boolean @default(true) // Deaktywacja zamiast usuwania
+
+  // Proste 1:1 dla obecnego UI (może być null, jeśli użyjemy TripMedia).
+  heroImagePath String?
+  cardImagePath String?
+
+  media          TripMedia[]
+  orderItems     OrderItem[]
+  departurePoints DeparturePoint[] // Miejsca wylotu dla tego wyjazdu
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isFeatured])
+  @@index([availability])
+  @@index([startsAt])
+  @@index([isActive])
+  @@index([isFeatured, startsAt]) // Composite index dla sortowania featured trips
+}
+
+model TripMedia {
+  id        String @id @default(cuid())
+  tripId    String
+  trip      Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  kind      TripMediaKind
+  path      String
+  alt       String?
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([tripId, kind])
+}
+
+model DeparturePoint {
+  id        String @id @default(cuid())
+  tripId    String
+  trip      Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  city      String // Nazwa miasta wylotu (np. "Warszawa", "Kraków")
+  priceCents Int   // Cena za osobę dla tego miejsca wylotu
+  currency  String @default("PLN")
+
+  isActive  Boolean @default(true) // Deaktywacja zamiast usuwania
+
+  sortOrder Int @default(0) // Kolejność wyświetlania (0 = pierwszy)
+
+  orderItems OrderItem[] // Zamówienia z tym miejscem wylotu
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId, isActive])
+  @@index([tripId, sortOrder])
+}
+
+enum NewsletterStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+}
+
+model NewsletterSubscriber {
+  id        String            @id @default(cuid())
+  email     String            @unique
+  name      String?
+  status    NewsletterStatus  @default(PENDING)
+
+  // Zgoda z checkboxa (dla porządku prawnego)
+  consentAt  DateTime @default(now())
+  sourcePage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+}
+
+enum OrderStatus {
+  DRAFT      // koszyk po stronie serwera (opcjonalnie)
+  SUBMITTED  // złożona rezerwacja (lead)
+  CONFIRMED  // potwierdzona (np. po umowie)
+  CANCELLED
+}
+
+enum InvoiceType {
+  RECEIPT
+  INVOICE_PERSONAL
+  INVOICE_COMPANY
+}
+
+enum DocumentType {
+  ID_CARD
+  PASSPORT
+  OTHER
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique // np. "DTS-2026-000123" (generujesz w backendzie)
+  status      OrderStatus @default(SUBMITTED)
+
+  // Rezerwujący: snapshot (działa też dla gościa)
+  customerName  String?
+  customerEmail String
+  customerPhone String?
+
+  invoiceType     InvoiceType @default(RECEIPT)
+  companyName     String?
+  companyTaxId    String?
+  companyAddress  String?
+
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+
+  checkoutSessionId String? @unique
+  checkoutSession   CheckoutSession? @relation(fields: [checkoutSessionId], references: [id])
+
+  currency   String @default("PLN")
+  totalCents Int    @default(0) // snapshot; liczysz w backendzie z OrderItem
+
+  items               OrderItem[]
+  payments            Payment[]
+  loyaltyTransactions LoyaltyTransaction[]
+
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([customerEmail])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+model OrderItem {
+  id          String @id @default(cuid())
+  orderId     String
+  order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  tripId      String
+  trip        Trip   @relation(fields: [tripId], references: [id])
+
+  departurePointId String? // Wybrane miejsce wylotu (opcjonalne dla kompatybilności wstecznej)
+  departurePoint   DeparturePoint? @relation(fields: [departurePointId], references: [id])
+
+  qty         Int  // liczba osób
+  unitPriceCents Int // snapshot ceny za osobę w momencie zakupu (z DeparturePoint.priceCents lub Trip.priceCents)
+  currency    String @default("PLN")
+
+  passengers Passenger[]
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([tripId])
+  @@index([departurePointId])
+}
+
+model Passenger {
+  id          String @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  firstName   String
+  lastName    String
+  birthDate   DateTime?
+  documentType DocumentType @default(ID_CARD)
+  documentNumber String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderItemId])
+}
+
+enum PaymentProvider {
+  PRZELEWY24
+  MANUAL_TRANSFER // dla przelewów tradycyjnych (bez integracji)
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+model Payment {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider  PaymentProvider
+  status    PaymentStatus @default(PENDING)
+
+  amountCents Int
+  currency    String @default("PLN")
+
+  // ID transakcji u operatora (np. P24 transactionId)
+  externalId String?
+
+  // Webhook payload / metadata (JSON)
+  raw        Json?
+
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([provider, status])
+  @@index([externalId])
+}
+
+enum CheckoutSessionStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+model CheckoutSession {
+  id        String                @id @default(cuid())
+  status    CheckoutSessionStatus @default(PENDING)
+
+  // Email użytkownika (może nie mieć konta jeszcze)
+  customerEmail String
+
+  // Snapshot koszyka (JSON)
+  cartData Json
+
+  // Użytkownik (jeśli istnieje lub został utworzony)
+  userId String?
+  user   User? @relation(fields: [userId], references: [id])
+
+  // Punkty zarezerwowane do użycia (jeśli magic link został użyty)
+  pointsReserved Int @default(0)
+
+  // Zamówienie (jeśli zostało utworzone)
+  order Order?
+
+  // Tokeny magic link powiązane z tą sesją
+  magicLinkTokens MagicLinkToken[]
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerEmail])
+  @@index([status])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model MagicLinkToken {
+  id        String @id @default(cuid())
+  token     String @unique // jednorazowy token
+  sessionId String
+  session   CheckoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  usedAt   DateTime?
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+
+  // User tworzony automatycznie przy pierwszym zakupie
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders            Order[]
+  checkoutSessions  CheckoutSession[]
+  magicLinkTokens   MagicLinkToken[]
+  loyaltyAccount    LoyaltyAccount?
+
+  @@index([email])
+}
+
+model LoyaltyAccount {
+  id      String @id @default(cuid())
+  userId  String @unique
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Denormalizacja dla szybkich odczytów (źródłem prawdy jest ledger)
+  pointsBalance Int @default(0)
+
+  transactions LoyaltyTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LoyaltyTxnType {
+  EARN   // naliczenie punktów (np. 10% wartości zamówienia)
+  SPEND  // użycie punktów (wymiana na voucher/rabat)
+  ADJUST // korekta ręczna
+}
+
+model LoyaltyTransaction {
+  id        String @id @default(cuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  type      LoyaltyTxnType
+  points    Int // dodatnie dla EARN, ujemne dla SPEND
+  note      String?
+  orderId   String?
+  order     Order? @relation(fields: [orderId], references: [id])
+
+  // Data ważności punktów (tylko dla EARN: createdAt + 1 rok, dla SPEND/ADJUST: null)
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+  @@index([accountId, expiresAt, type]) // Dla szybkich zapytań o ważne punkty
+  @@index([expiresAt]) // Dla zapytań o wygasające punkty
+}
+
+// Dodaj relację Order -> LoyaltyTransaction
+// W modelu Order:
+// loyaltyTransactions LoyaltyTransaction[]
+
+enum ContentPage {
+  HOME
+  DREAM_POINTS
+  COOPERATION
+}
+
+enum ContentSection {
+  // Strona główna
+  HOME_HERO
+  HOME_UPCOMING_TRIPS
+  HOME_HOW_IT_WORKS
+  HOME_WHY_US
+  HOME_NEWSLETTER
+  
+  // Dream Points
+  DP_INTRO
+  DP_HOW_MANY
+  DP_VOUCHERS
+  DP_WHY_ACCOUNT
+  
+  // Współpraca
+  COOP_INTRO
+  COOP_GALLERY
+  COOP_CONTACT
+}
+
+model Content {
+  id        String         @id @default(cuid())
+  page      ContentPage
+  section   ContentSection @unique
+  
+  // Treść w formacie JSON - pozwala na elastyczną strukturę
+  // np. { "title": "...", "subtitle": "...", "badges": [...], "steps": [...] }
+  data      Json
+  
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([page, section])
+  @@index([section])
+}
+
+
