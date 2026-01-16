@@ -317,11 +317,27 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       const jwtToken = jwt.sign({ admin: true }, jwtSecret, { expiresIn: "24h" });
 
       // Ustaw JWT w HttpOnly cookie
+      // Dla cross-origin (np. localhost → onrender.com) potrzebujemy sameSite: "none" + secure: true
+      // Dla same-origin możemy użyć sameSite: "strict"
       const isProduction = env.NODE_ENV === "production";
+      const requestOrigin = req.headers.origin || "";
+      const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+      const isCrossOrigin =
+        requestOrigin &&
+        !allowedOrigins.some((allowed) => {
+          try {
+            const allowedUrl = new URL(allowed);
+            const requestUrl = new URL(requestOrigin);
+            return allowedUrl.origin === requestUrl.origin;
+          } catch {
+            return false;
+          }
+        });
+
       res.cookie("adminToken", jwtToken, {
         httpOnly: true,
-        secure: isProduction, // Tylko HTTPS w produkcji
-        sameSite: "strict",
+        secure: isCrossOrigin || isProduction, // Secure wymagane dla sameSite: "none" i w produkcji
+        sameSite: isCrossOrigin ? "none" : "strict", // "none" dla cross-origin, "strict" dla same-origin
         maxAge: 24 * 60 * 60 * 1000 // 24 godziny
       });
 
@@ -341,10 +357,26 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
 
   // POST /api/admin/logout - endpoint wylogowania (przed middleware autoryzacji)
   router.post("/logout", (req, res) => {
+    // Przy czyszczeniu cookie musimy użyć tych samych opcji co przy ustawianiu
+    const requestOrigin = req.headers.origin || "";
+    const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+    const isCrossOrigin =
+      requestOrigin &&
+      !allowedOrigins.some((allowed) => {
+        try {
+          const allowedUrl = new URL(allowed);
+          const requestUrl = new URL(requestOrigin);
+          return allowedUrl.origin === requestUrl.origin;
+        } catch {
+          return false;
+        }
+      });
+    const isProduction = env.NODE_ENV === "production";
+
     res.clearCookie("adminToken", {
       httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "strict"
+      secure: isCrossOrigin || isProduction,
+      sameSite: isCrossOrigin ? "none" : "strict"
     });
     res.json({
       success: true,
