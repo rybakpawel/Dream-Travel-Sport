@@ -116,7 +116,7 @@ loginForm.addEventListener("submit", async (e) => {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "include", // Ważne: wysyła cookies
+      credentials: "include", // Ważne: wysyła cookies (i odbiera cookie z tokenem)
       body: JSON.stringify({ token })
     });
 

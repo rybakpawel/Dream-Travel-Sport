@@ -14,6 +14,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   // Merge cache option if provided
   const fetchOptions: RequestInit = {
     ...options,
+    credentials: "include", // Zawsze wysyłaj cookies (potrzebne dla admin auth)
     headers: {
       "Content-Type": "application/json",
       ...options.headers

@@ -349,6 +349,7 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         httpOnly: true,
         secure: isCrossOrigin || isProduction, // Secure wymagane dla sameSite: "none" i w produkcji
         sameSite: isCrossOrigin ? "none" : "strict", // "none" dla cross-origin, "strict" dla same-origin
+        path: "/", // Cookie dostępny dla wszystkich ścieżek
         maxAge: 24 * 60 * 60 * 1000 // 24 godziny
       });
 
@@ -388,7 +389,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
     res.clearCookie("adminToken", {
       httpOnly: true,
       secure: isCrossOrigin || isProduction,
-      sameSite: isCrossOrigin ? "none" : "strict"
+      sameSite: isCrossOrigin ? "none" : "strict",
+      path: "/" // Musi być taka sama jak przy ustawianiu
     });
     res.json({
       success: true,
