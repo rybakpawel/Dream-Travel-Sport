@@ -321,18 +321,29 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       // Dla same-origin możemy użyć sameSite: "strict"
       const isProduction = env.NODE_ENV === "production";
       const requestOrigin = req.headers.origin || "";
-      const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
-      const isCrossOrigin =
-        requestOrigin &&
-        !allowedOrigins.some((allowed) => {
-          try {
-            const allowedUrl = new URL(allowed);
-            const requestUrl = new URL(requestOrigin);
-            return allowedUrl.origin === requestUrl.origin;
-          } catch {
-            return false;
-          }
-        });
+      const serverPublicUrl = env.SERVER_PUBLIC_URL || `http://localhost:${env.PORT}`;
+
+      // Sprawdź czy request pochodzi z innej domeny niż backend
+      let isCrossOrigin = false;
+      if (requestOrigin) {
+        try {
+          const requestUrl = new URL(requestOrigin);
+          const serverUrl = new URL(serverPublicUrl);
+          // Cross-origin jeśli różne hosty (np. localhost:5173 vs dream-travel-sport.onrender.com)
+          isCrossOrigin =
+            requestUrl.hostname !== serverUrl.hostname || requestUrl.port !== serverUrl.port;
+        } catch {
+          // Jeśli nie można sparsować URL, zakładamy same-origin
+          isCrossOrigin = false;
+        }
+      }
+
+      // Logowanie dla debugowania (tylko w development)
+      if (env.NODE_ENV === "development") {
+        console.log(
+          `[admin] Login - origin: ${requestOrigin}, server: ${serverPublicUrl}, cross-origin: ${isCrossOrigin}`
+        );
+      }
 
       res.cookie("adminToken", jwtToken, {
         httpOnly: true,
@@ -359,18 +370,19 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
   router.post("/logout", (req, res) => {
     // Przy czyszczeniu cookie musimy użyć tych samych opcji co przy ustawianiu
     const requestOrigin = req.headers.origin || "";
-    const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
-    const isCrossOrigin =
-      requestOrigin &&
-      !allowedOrigins.some((allowed) => {
-        try {
-          const allowedUrl = new URL(allowed);
-          const requestUrl = new URL(requestOrigin);
-          return allowedUrl.origin === requestUrl.origin;
-        } catch {
-          return false;
-        }
-      });
+    const serverPublicUrl = env.SERVER_PUBLIC_URL || `http://localhost:${env.PORT}`;
+
+    let isCrossOrigin = false;
+    if (requestOrigin) {
+      try {
+        const requestUrl = new URL(requestOrigin);
+        const serverUrl = new URL(serverPublicUrl);
+        isCrossOrigin =
+          requestUrl.hostname !== serverUrl.hostname || requestUrl.port !== serverUrl.port;
+      } catch {
+        isCrossOrigin = false;
+      }
+    }
     const isProduction = env.NODE_ENV === "production";
 
     res.clearCookie("adminToken", {
