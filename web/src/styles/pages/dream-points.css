@@ -1,6 +1,7 @@
 @import "../base.css";
 @import "../components/header.css";
 @import "../components/buttons.css";
+@import "../components/cookies-banner.css";
 
 main {
   max-width: 1200px;

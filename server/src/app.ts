@@ -1,4 +1,5 @@
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import express from "express";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,7 @@ import { createHealthRouter } from "./routes/health.js";
 import { createNewsletterRouter } from "./routes/newsletter.js";
 import { createOrdersRouter } from "./routes/orders.js";
 import { createPaymentsRouter } from "./routes/payments.js";
+import { createContactRouter } from "./routes/contact.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { createEmailService } from "./services/email.js";
 import { tripsRouter } from "./routes/trips.js";
@@ -30,6 +32,7 @@ export function createApp(env: Env) {
   const app = express();
 
   app.disable("x-powered-by");
+  app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
 
   // Serwuj statyczne pliki z web/public (obrazy, itp.)
@@ -61,6 +64,8 @@ export function createApp(env: Env) {
   app.use("/api/checkout", createCheckoutRouter(env, emailService));
   app.use("/api/orders", createOrdersRouter(env, emailService));
   app.use("/api", createPaymentsRouter(env, emailService));
+  app.use("/api/contact", createContactRouter(env, emailService));
+  app.use("/api/contact", createContactRouter(env, emailService));
 
   app.use((_req, res) => {
     res.status(404).json({ error: "Not found", message: "Resource not found", code: "NOT_FOUND" });

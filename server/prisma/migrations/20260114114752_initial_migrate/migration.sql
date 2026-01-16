@@ -28,24 +28,33 @@ CREATE TYPE "CheckoutSessionStatus" AS ENUM ('PENDING', 'PAID', 'CANCELLED', 'EX
 -- CreateEnum
 CREATE TYPE "LoyaltyTxnType" AS ENUM ('EARN', 'SPEND', 'ADJUST');
 
+-- CreateEnum
+CREATE TYPE "ContentPage" AS ENUM ('HOME', 'DREAM_POINTS', 'COOPERATION');
+
+-- CreateEnum
+CREATE TYPE "ContentSection" AS ENUM ('HOME_HERO', 'HOME_UPCOMING_TRIPS', 'HOME_HOW_IT_WORKS', 'HOME_WHY_US', 'HOME_NEWSLETTER', 'DP_INTRO', 'DP_HOW_MANY', 'DP_VOUCHERS', 'DP_WHY_ACCOUNT', 'COOP_INTRO', 'COOP_GALLERY', 'COOP_CONTACT');
+
 -- CreateTable
 CREATE TABLE "Trip" (
     "id" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "details" TEXT NOT NULL,
+    "extendedDescription" TEXT NOT NULL,
     "tag" TEXT NOT NULL,
-    "match" TEXT NOT NULL,
     "meta" TEXT NOT NULL,
-    "startsAt" TIMESTAMP(3),
-    "endsAt" TIMESTAMP(3),
+    "startsAt" TIMESTAMP(3) NOT NULL,
+    "endsAt" TIMESTAMP(3) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'PLN',
-    "priceCents" INTEGER NOT NULL,
-    "capacity" INTEGER,
-    "seatsLeft" INTEGER,
+    "priceCents" INTEGER,
+    "capacity" INTEGER NOT NULL,
+    "seatsLeft" INTEGER NOT NULL,
     "availability" "TripAvailability" NOT NULL DEFAULT 'OPEN',
     "spotsLabel" TEXT,
+    "useAutoSpotsLabel" BOOLEAN NOT NULL DEFAULT false,
+    "hotelClass" INTEGER,
     "isFeatured" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "heroImagePath" TEXT,
     "cardImagePath" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -65,6 +74,21 @@ CREATE TABLE "TripMedia" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "TripMedia_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DeparturePoint" (
+    "id" TEXT NOT NULL,
+    "tripId" TEXT NOT NULL,
+    "city" TEXT NOT NULL,
+    "priceCents" INTEGER NOT NULL,
+    "currency" TEXT NOT NULL DEFAULT 'PLN',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "DeparturePoint_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -109,6 +133,7 @@ CREATE TABLE "OrderItem" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "tripId" TEXT NOT NULL,
+    "departurePointId" TEXT,
     "qty" INTEGER NOT NULL,
     "unitPriceCents" INTEGER NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'PLN',
@@ -205,9 +230,22 @@ CREATE TABLE "LoyaltyTransaction" (
     "points" INTEGER NOT NULL,
     "note" TEXT,
     "orderId" TEXT,
+    "expiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "LoyaltyTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Content" (
+    "id" TEXT NOT NULL,
+    "page" "ContentPage" NOT NULL,
+    "section" "ContentSection" NOT NULL,
+    "data" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Content_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -223,7 +261,19 @@ CREATE INDEX "Trip_availability_idx" ON "Trip"("availability");
 CREATE INDEX "Trip_startsAt_idx" ON "Trip"("startsAt");
 
 -- CreateIndex
+CREATE INDEX "Trip_isActive_idx" ON "Trip"("isActive");
+
+-- CreateIndex
+CREATE INDEX "Trip_isFeatured_startsAt_idx" ON "Trip"("isFeatured", "startsAt");
+
+-- CreateIndex
 CREATE INDEX "TripMedia_tripId_kind_idx" ON "TripMedia"("tripId", "kind");
+
+-- CreateIndex
+CREATE INDEX "DeparturePoint_tripId_isActive_idx" ON "DeparturePoint"("tripId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "DeparturePoint_tripId_sortOrder_idx" ON "DeparturePoint"("tripId", "sortOrder");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "NewsletterSubscriber_email_key" ON "NewsletterSubscriber"("email");
@@ -254,6 +304,9 @@ CREATE INDEX "OrderItem_orderId_idx" ON "OrderItem"("orderId");
 
 -- CreateIndex
 CREATE INDEX "OrderItem_tripId_idx" ON "OrderItem"("tripId");
+
+-- CreateIndex
+CREATE INDEX "OrderItem_departurePointId_idx" ON "OrderItem"("departurePointId");
 
 -- CreateIndex
 CREATE INDEX "Passenger_orderItemId_idx" ON "Passenger"("orderItemId");
@@ -309,8 +362,26 @@ CREATE INDEX "LoyaltyTransaction_accountId_createdAt_idx" ON "LoyaltyTransaction
 -- CreateIndex
 CREATE INDEX "LoyaltyTransaction_orderId_idx" ON "LoyaltyTransaction"("orderId");
 
+-- CreateIndex
+CREATE INDEX "LoyaltyTransaction_accountId_expiresAt_type_idx" ON "LoyaltyTransaction"("accountId", "expiresAt", "type");
+
+-- CreateIndex
+CREATE INDEX "LoyaltyTransaction_expiresAt_idx" ON "LoyaltyTransaction"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Content_section_key" ON "Content"("section");
+
+-- CreateIndex
+CREATE INDEX "Content_page_section_idx" ON "Content"("page", "section");
+
+-- CreateIndex
+CREATE INDEX "Content_section_idx" ON "Content"("section");
+
 -- AddForeignKey
 ALTER TABLE "TripMedia" ADD CONSTRAINT "TripMedia_tripId_fkey" FOREIGN KEY ("tripId") REFERENCES "Trip"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DeparturePoint" ADD CONSTRAINT "DeparturePoint_tripId_fkey" FOREIGN KEY ("tripId") REFERENCES "Trip"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -323,6 +394,9 @@ ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("or
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_tripId_fkey" FOREIGN KEY ("tripId") REFERENCES "Trip"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_departurePointId_fkey" FOREIGN KEY ("departurePointId") REFERENCES "DeparturePoint"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Passenger" ADD CONSTRAINT "Passenger_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "OrderItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;

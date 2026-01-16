@@ -36,6 +36,25 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
       select: {
         id: true,
         pointsReserved: true,
+        order: {
+          select: {
+            id: true,
+            status: true,
+            items: {
+              select: {
+                tripId: true,
+                qty: true
+              }
+            },
+            payments: {
+              select: {
+                id: true,
+                provider: true,
+                status: true
+              }
+            }
+          }
+        },
         magicLinkTokens: {
           where: {
             usedAt: null, // Tylko nieużyte tokeny
@@ -49,10 +68,61 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
     });
 
     // 2. Przetwórz każdą wygasłą sesję w transakcjach (dla bezpieczeństwa)
+    // UWAGA: Nie anulujemy tutaj zamówień P24 - te są anulowane przez sekcję 4 po ich własnym TTL (120 min lub 48h)
+    // Nie anulujemy też zamówień z przelewem tradycyjnym - te czekają na ręczne zatwierdzenie przez admina
     for (const session of expiredSessions) {
       const pointsToRelease = session.pointsReserved ?? 0;
 
       await prisma.$transaction(async (tx) => {
+        // Anuluj tylko zamówienia bez żadnej płatności (edge case - użytkownik złożył zamówienie, ale nie wybrał metody płatności)
+        if (
+          session.order &&
+          session.order.status === OrderStatus.SUBMITTED &&
+          session.order.payments.length === 0
+        ) {
+          // Anuluj zamówienie bez płatności
+          await tx.order.update({
+            where: { id: session.order.id },
+            data: { status: OrderStatus.CANCELLED }
+          });
+
+          // Zwolnij miejsca
+          for (const item of session.order.items) {
+            const trip = await tx.trip.findUnique({
+              where: { id: item.tripId },
+              select: {
+                id: true,
+                seatsLeft: true,
+                capacity: true,
+                availability: true
+              }
+            });
+
+            if (!trip) continue;
+
+            const unclamped = trip.seatsLeft + item.qty;
+            const newSeatsLeft = Math.min(trip.capacity, unclamped);
+
+            let nextAvailability = trip.availability;
+            if (newSeatsLeft === 0) {
+              nextAvailability = TripAvailability.CLOSED;
+            } else if (trip.availability === TripAvailability.CLOSED) {
+              // Jeśli wcześniej było CLOSED przez brak miejsc, otwieramy z powrotem
+              nextAvailability = TripAvailability.OPEN;
+            }
+
+            await tx.trip.update({
+              where: { id: trip.id },
+              data: {
+                seatsLeft: newSeatsLeft,
+                availability: nextAvailability
+              }
+            });
+          }
+        }
+        // Zamówienia z płatnością P24 pozostają aktywne i są anulowane przez sekcję 4 po TTL (120 min lub 48h)
+        // Zamówienia z przelewem tradycyjnym pozostają aktywne i czekają na ręczne zatwierdzenie przez admina
+
         // Oznacz sesję jako EXPIRED i zwolnij zarezerwowane punkty
         await tx.checkoutSession.update({
           where: { id: session.id },

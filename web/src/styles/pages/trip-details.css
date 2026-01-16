@@ -2,6 +2,7 @@
 @import "../components/header.css";
 @import "../components/buttons.css";
 @import "../components/loading.css";
+@import "../components/cookies-banner.css";
 
 /* Trip Hero Section */
 .trip-hero {

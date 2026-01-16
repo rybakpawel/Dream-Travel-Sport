@@ -3,6 +3,7 @@
 @import "../components/buttons.css";
 @import "../components/notifications.css";
 @import "../components/loading.css";
+@import "../components/cookies-banner.css";
 
 .cart-link {
   background: rgba(0, 0, 0, 0.25);

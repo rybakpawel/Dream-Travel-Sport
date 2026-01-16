@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import multer from "multer";
+import jwt from "jsonwebtoken";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { closeSync, existsSync, mkdirSync, openSync, readSync, unlinkSync } from "node:fs";
@@ -50,6 +51,7 @@ if (!existsSync(tripsUploadDir)) {
 
 const ALLOWED_IMAGE_MIME: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
   "image/jpeg": "jpeg",
+  "image/jpg": "jpeg", // Some browsers send image/jpg instead of image/jpeg
   "image/png": "png",
   "image/webp": "webp",
   "image/gif": "gif"
@@ -69,10 +71,15 @@ function imageKindToExt(kind: "jpeg" | "png" | "webp" | "gif"): string {
 }
 
 function detectImageKindFromHeader(header: Buffer): "jpeg" | "png" | "webp" | "gif" | null {
-  if (header.length < 12) return null;
+  if (header.length < 2) return null;
 
-  // JPEG: FF D8 FF
-  if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) return "jpeg";
+  // JPEG: FF D8 (third byte can vary: FF, E0, E1, DB, etc.)
+  // Standard JPEG signature starts with FF D8, which is sufficient to identify JPEG
+  if (header[0] === 0xff && header[1] === 0xd8) {
+    return "jpeg";
+  }
+  
+  if (header.length < 12) return null;
 
   // PNG: 89 50 4E 47 0D 0A 1A 0A
   if (
@@ -117,15 +124,37 @@ function detectImageKindFromHeader(header: Buffer): "jpeg" | "png" | "webp" | "g
   return null;
 }
 
-function verifyUploadedImage(filePath: string, expectedKind: "jpeg" | "png" | "webp" | "gif"): boolean {
-  // Odczytaj tylko nagłówek (nie cały plik)
+function verifyUploadedImage(filePath: string): "jpeg" | "png" | "webp" | "gif" | null {
+  // Odczytaj tylko nagłówek (nie cały plik) i zwróć wykryty typ obrazu
+  if (!existsSync(filePath)) {
+    console.error(`[admin] File does not exist: ${filePath}`);
+    return null;
+  }
+
   const fd = openSync(filePath, "r");
   try {
     const header = Buffer.alloc(16);
     const bytesRead = readSync(fd, header, 0, header.length, 0);
+    
+    if (bytesRead < 2) {
+      console.error(`[admin] File too small: only ${bytesRead} bytes read`);
+      return null;
+    }
+    
     const slice = header.subarray(0, bytesRead);
     const detected = detectImageKindFromHeader(slice);
-    return detected === expectedKind;
+    
+    const headerHex = Array.from(slice.slice(0, Math.min(8, bytesRead))).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ');
+    console.log(`[admin] Image verification: file=${filePath}, detected=${detected}, bytesRead=${bytesRead}, header=${headerHex}`);
+    
+    if (detected === null) {
+      console.error(`[admin] Could not detect image type from header. Header bytes: ${headerHex}`);
+    }
+    
+    return detected;
+  } catch (err) {
+    console.error(`[admin] Error reading image header:`, err);
+    return null;
   } finally {
     closeSync(fd);
   }
@@ -185,10 +214,27 @@ const storage = multer.diskStorage({
     cb(null, tripsUploadDir);
   },
   filename: (_req, file, cb) => {
-    const kind = ALLOWED_IMAGE_MIME[file.mimetype];
+    // Try to get kind from MIME type first
+    let kind = ALLOWED_IMAGE_MIME[file.mimetype];
+    
+    // If MIME type is not recognized, try to detect from original filename extension
     if (!kind) {
+      const originalExt = file.originalname.toLowerCase().split('.').pop();
+      const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
+        "jpg": "jpeg",
+        "jpeg": "jpeg",
+        "png": "png",
+        "webp": "webp",
+        "gif": "gif"
+      };
+      kind = extToKind[originalExt || ""];
+    }
+    
+    if (!kind) {
+      console.error(`[admin] Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`);
       return cb(new Error("Nieobsługiwany typ pliku. Dozwolone: JPG/PNG/WEBP/GIF."));
     }
+    
     const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
     const ext = imageKindToExt(kind);
     cb(null, `${uniqueSuffix}.${ext}`);
@@ -202,8 +248,23 @@ const upload = multer({
   },
   fileFilter: (_req, file, cb) => {
     // Dozwolone tylko bezpieczne formaty rastrowe (bez SVG)
-    const kind = ALLOWED_IMAGE_MIME[file.mimetype];
+    let kind = ALLOWED_IMAGE_MIME[file.mimetype];
+    
+    // If MIME type is not recognized, try to detect from original filename extension
     if (!kind) {
+      const originalExt = file.originalname.toLowerCase().split('.').pop();
+      const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
+        "jpg": "jpeg",
+        "jpeg": "jpeg",
+        "png": "png",
+        "webp": "webp",
+        "gif": "gif"
+      };
+      kind = extToKind[originalExt || ""];
+    }
+    
+    if (!kind) {
+      console.error(`[admin] fileFilter: Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`);
       return cb(new Error("Nieobsługiwany typ pliku. Dozwolone: JPG/PNG/WEBP/GIF."));
     }
     cb(null, true);
@@ -213,7 +274,77 @@ const upload = multer({
 export function createAdminRouter(env: Env, emailService: EmailService | null): express.Router {
   const router = express.Router();
 
-  // Wszystkie endpointy wymagają autentykacji admina
+  // POST /api/admin/login - endpoint logowania (przed middleware autoryzacji)
+  router.post("/login", async (req, res) => {
+    try {
+      const { token } = req.body;
+
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Token jest wymagany",
+          code: "MISSING_TOKEN"
+        });
+      }
+
+      if (!env.ADMIN_TOKEN || env.ADMIN_TOKEN.length < 32) {
+        return res.status(500).json({
+          error: "InternalError",
+          message: "Admin token nie jest skonfigurowany",
+          code: "TOKEN_NOT_CONFIGURED"
+        });
+      }
+
+      // Sprawdź czy token jest poprawny
+      if (token !== env.ADMIN_TOKEN) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Nieprawidłowy token",
+          code: "INVALID_TOKEN"
+        });
+      }
+
+      // Generuj JWT (ważny przez 24 godziny)
+      const jwtSecret = env.ADMIN_TOKEN; // Używamy ADMIN_TOKEN jako secret dla JWT
+      const jwtToken = jwt.sign({ admin: true }, jwtSecret, { expiresIn: "24h" });
+
+      // Ustaw JWT w HttpOnly cookie
+      const isProduction = env.NODE_ENV === "production";
+      res.cookie("adminToken", jwtToken, {
+        httpOnly: true,
+        secure: isProduction, // Tylko HTTPS w produkcji
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000 // 24 godziny
+      });
+
+      res.json({
+        success: true,
+        message: "Zalogowano pomyślnie"
+      });
+    } catch (err) {
+      console.error("[admin] Login error:", err);
+      res.status(500).json({
+        error: "InternalError",
+        message: "Wystąpił błąd podczas logowania",
+        code: "LOGIN_ERROR"
+      });
+    }
+  });
+
+  // POST /api/admin/logout - endpoint wylogowania (przed middleware autoryzacji)
+  router.post("/logout", (req, res) => {
+    res.clearCookie("adminToken", {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "strict"
+    });
+    res.json({
+      success: true,
+      message: "Wylogowano pomyślnie"
+    });
+  });
+
+  // Wszystkie pozostałe endpointy wymagają autentykacji admina
   router.use(createAdminAuthMiddleware(env));
 
   function uploadSingleImage(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -242,7 +373,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
 
       const expectedKind = ALLOWED_IMAGE_MIME[req.file.mimetype];
       const absPath = resolveUploadFilePath(req.file.filename);
-      if (!expectedKind || !verifyUploadedImage(absPath, expectedKind)) {
+      const detectedKind = verifyUploadedImage(absPath);
+      if (!expectedKind || !detectedKind) {
         try {
           if (existsSync(absPath)) {
             unlinkSync(absPath);
@@ -253,6 +385,11 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
           message: "Plik nie jest poprawnym obrazem (JPG/PNG/WEBP/GIF).",
           code: "INVALID_IMAGE"
         });
+      }
+      
+      // Log if detected type doesn't match expected type (but still accept it)
+      if (detectedKind !== expectedKind) {
+        console.warn(`[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`);
       }
 
       // Zwróć ścieżkę względną do pliku (będzie dostępna przez /assets/trips/filename)
@@ -1844,6 +1981,191 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         }
       });
       res.json({ data: content });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Validation error",
+          details: err.errors
+        });
+      }
+      next(err);
+    }
+  });
+
+  // POST /api/admin/content/COOP_GALLERY/images - dodaj zdjęcie do galerii
+  router.post("/content/COOP_GALLERY/images", uploadSingleImage, async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "Brak pliku do uploadu",
+          code: "MISSING_FILE"
+        });
+      }
+
+      // Try to detect image kind from MIME type or filename
+      let expectedKind = ALLOWED_IMAGE_MIME[req.file.mimetype];
+      
+      // If MIME type is not recognized, try to detect from filename extension
+      if (!expectedKind) {
+        const fileExt = req.file.filename.toLowerCase().split('.').pop();
+        const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
+          "jpg": "jpeg",
+          "jpeg": "jpeg",
+          "png": "png",
+          "webp": "webp",
+          "gif": "gif"
+        };
+        expectedKind = extToKind[fileExt || ""];
+      }
+      
+      const absPath = resolve(tripsUploadDir, req.file.filename);
+
+      console.log(`[admin] Gallery image upload: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}, expectedKind=${expectedKind}`);
+      console.log(`[admin] Upload directory: ${tripsUploadDir}`);
+      console.log(`[admin] Absolute path: ${absPath}`);
+      console.log(`[admin] File exists: ${existsSync(absPath)}`);
+
+      if (!expectedKind) {
+        console.error(`[admin] Unsupported file type: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}`);
+        try {
+          if (existsSync(absPath)) {
+            unlinkSync(absPath);
+          }
+        } catch {}
+        return res.status(400).json({
+          error: "ValidationError",
+          message: `Nieobsługiwany typ pliku: ${req.file.mimetype || 'nieznany'}. Dozwolone: JPG/PNG/WEBP/GIF.`,
+          code: "INVALID_IMAGE"
+        });
+      }
+
+      // Wait a bit to ensure file is fully written to disk
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (!existsSync(absPath)) {
+        console.error(`[admin] File does not exist after upload: ${absPath}`);
+        return res.status(500).json({
+          error: "InternalError",
+          message: "Plik nie został zapisany na serwerze.",
+          code: "FILE_NOT_SAVED"
+        });
+      }
+
+      // Verify image - accept if it's a valid image type, even if it doesn't match expected MIME type
+      const detectedKind = verifyUploadedImage(absPath);
+      if (!detectedKind) {
+        console.error(`[admin] Image verification failed: file=${absPath} is not a valid image`);
+        try {
+          if (existsSync(absPath)) {
+            unlinkSync(absPath);
+          }
+        } catch {}
+        return res.status(400).json({
+          error: "ValidationError",
+          message: "Plik nie jest poprawnym obrazem (JPG/PNG/WEBP/GIF). Sprawdź czy plik nie jest uszkodzony.",
+          code: "INVALID_IMAGE"
+        });
+      }
+      
+      // Log if detected type doesn't match expected type (but still accept it)
+      if (detectedKind !== expectedKind) {
+        console.warn(`[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`);
+      }
+
+      const imagePath = `/assets/trips/${req.file.filename}`;
+
+      // Pobierz aktualną zawartość COOP_GALLERY
+      const galleryContent = await prisma.content.findUnique({
+        where: { section: ContentSection.COOP_GALLERY }
+      });
+
+      const currentData = (galleryContent?.data as any) || {};
+      const currentImages = Array.isArray(currentData.images) ? currentData.images : [];
+
+      // Dodaj nowe zdjęcie
+      const updatedImages = [...currentImages, imagePath];
+
+      // Zaktualizuj content
+      await prisma.content.upsert({
+        where: { section: ContentSection.COOP_GALLERY },
+        update: {
+          data: {
+            ...currentData,
+            images: updatedImages
+          }
+        },
+        create: {
+          page: ContentPage.COOPERATION,
+          section: ContentSection.COOP_GALLERY,
+          data: {
+            title: currentData.title || "",
+            subtitle: currentData.subtitle || "",
+            images: updatedImages
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        path: imagePath,
+        filename: req.file.filename
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // DELETE /api/admin/content/COOP_GALLERY/images - usuń zdjęcie z galerii
+  router.delete("/content/COOP_GALLERY/images", async (req, res, next) => {
+    try {
+      const bodySchema = z.object({
+        imagePath: z.string().min(1)
+      });
+      const body = bodySchema.parse(req.body);
+
+      // Pobierz aktualną zawartość COOP_GALLERY
+      const galleryContent = await prisma.content.findUnique({
+        where: { section: ContentSection.COOP_GALLERY }
+      });
+
+      if (!galleryContent) {
+        throw new NotFoundError("COOP_GALLERY content");
+      }
+
+      const currentData = (galleryContent.data as any) || {};
+      const currentImages = Array.isArray(currentData.images) ? currentData.images : [];
+
+      // Usuń zdjęcie z listy
+      const updatedImages = currentImages.filter((img: string) => img !== body.imagePath);
+
+      // Usuń plik z dysku
+      const filename = body.imagePath.split("/").pop();
+      if (filename && isSafeUploadFilename(filename)) {
+        try {
+          const filePath = resolveUploadFilePath(filename);
+          if (existsSync(filePath)) {
+            unlinkSync(filePath);
+            console.log(`[admin] Deleted gallery image: ${filePath}`);
+          }
+        } catch (fileErr) {
+          console.error(`[admin] Failed to delete gallery image file:`, fileErr);
+          // Kontynuuj nawet jeśli usunięcie pliku się nie powiodło
+        }
+      }
+
+      // Zaktualizuj content
+      await prisma.content.update({
+        where: { section: ContentSection.COOP_GALLERY },
+        data: {
+          data: {
+            ...currentData,
+            images: updatedImages
+          }
+        }
+      });
+
+      res.json({ success: true });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({

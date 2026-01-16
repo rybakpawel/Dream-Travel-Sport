@@ -216,7 +216,7 @@
                     </div>
                     <div class="sidebar-menu-group">
                       <button class="sidebar-menu-item" data-subpage="cooperation">
-                        <span>Współpraca</span>
+                        <span>Dla firm</span>
                         <span class="menu-arrow">▼</span>
                       </button>
                       <div class="sidebar-submenu">
@@ -638,7 +638,24 @@
       </div>
     </template>
 
+    <!-- Cookies Banner -->
+    <div id="cookies-banner">
+      <div class="cookies-banner-content">
+        <div class="cookies-banner-icon">
+          <i class="fa-solid fa-cookie-bite"></i>
+        </div>
+        <div class="cookies-banner-text">
+          Ta strona wykorzystuje pliki cookies w celu zapewnienia prawidłowego działania oraz analizy ruchu na stronie. 
+          Kontynuując przeglądanie, akceptujesz naszą <a href="/assets/polityka-prywatnosci.pdf" target="_blank" rel="noopener">Politykę prywatności</a>.
+        </div>
+      </div>
+      <div class="cookies-banner-actions">
+        <button type="button" id="cookies-accept">Akceptuję</button>
+      </div>
+    </div>
+
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script type="module" src="/src/features/cookies-banner/index.ts"></script>
     <script type="module" src="/src/pages/admin.ts"></script>
   </body>
 </html>

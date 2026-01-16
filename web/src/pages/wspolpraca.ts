@@ -1,37 +1,36 @@
-import { contentApi } from "../api/client.js";
+import { contentApi, contactApi } from "../api/client.js";
+import { notifications } from "../utils/notifications.js";
 
 // Slider dla galerii zdjęć na stronie współpracy
-export function initGallerySlider() {
+export function initGallerySlider(images: string[] = []) {
+  const gallerySection = document.querySelector(".gallery-section") as HTMLElement | null;
   const slider = document.getElementById("gallery-slider") as HTMLElement | null;
   const prevBtn = document.getElementById("gallery-prev") as HTMLButtonElement | null;
   const nextBtn = document.getElementById("gallery-next") as HTMLButtonElement | null;
   const dotsWrap = document.getElementById("gallery-dots") as HTMLElement | null;
 
-  if (!slider || !prevBtn || !nextBtn || !dotsWrap) {
+  // Jeśli brak zdjęć, ukryj sekcję
+  if (!images || images.length === 0) {
+    if (gallerySection) {
+      gallerySection.style.display = "none";
+    }
     return;
   }
 
-  // Przykładowe zdjęcia - w przyszłości można pobierać z API
-  const images = [
-    "assets/images/cooperation-1.jpg",
-    "assets/images/cooperation-2.jpg",
-    "assets/images/cooperation-3.jpg",
-    "assets/images/cooperation-4.jpg",
-  ];
+  // Pokaż sekcję jeśli była ukryta
+  if (gallerySection) {
+    gallerySection.style.display = "";
+  }
 
-  // Fallback do placeholderów jeśli zdjęcia nie istnieją
-  const placeholderImages = [
-    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1551632811-561732d1e306?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&h=800&fit=crop",
-    "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=1200&h=800&fit=crop",
-  ];
+  if (!slider || !prevBtn || !nextBtn || !dotsWrap) {
+    return;
+  }
 
   let currentSlide = 0;
 
   function renderSlide(index: number) {
     currentSlide = index;
-    const imageUrl = images[index] || placeholderImages[index] || placeholderImages[0];
+    const imageUrl = images[index] || images[0];
     slider.style.backgroundImage = `url('${imageUrl}')`;
 
     // Aktualizuj kropki
@@ -64,58 +63,59 @@ export function initGallerySlider() {
     const nextIndex = (currentSlide + 1) % images.length;
     renderSlide(nextIndex);
   });
-
-  // Auto-play (opcjonalnie)
-  // let autoPlayInterval: number | null = null;
-  // function startAutoPlay() {
-  //   autoPlayInterval = window.setInterval(() => {
-  //     const nextIndex = (currentSlide + 1) % images.length;
-  //     renderSlide(nextIndex);
-  //   }, 5000);
-  // }
-  // function stopAutoPlay() {
-  //   if (autoPlayInterval) {
-  //     clearInterval(autoPlayInterval);
-  //     autoPlayInterval = null;
-  //   }
-  // }
-  // startAutoPlay();
-  // slider.addEventListener("mouseenter", stopAutoPlay);
-  // slider.addEventListener("mouseleave", startAutoPlay);
 }
 
-// Obsługa formularza kontaktowego (bez backendu - tylko UI)
+// Obsługa formularza kontaktowego
 export function initContactForm() {
   const form = document.getElementById("contact-form") as HTMLFormElement | null;
   const successMessage = document.getElementById("contact-success") as HTMLElement | null;
+  const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
 
   if (!form || !successMessage) {
     return;
   }
 
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    // Symulacja wysłania formularza
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
+    if (!submitButton) return;
 
-    console.log("Formularz kontaktowy (symulacja):", data);
+    // Wyłącz przycisk podczas wysyłania
+    submitButton.disabled = true;
+    const originalText = submitButton.textContent;
+    submitButton.textContent = "Wysyłanie...";
 
-    // Pokaż komunikat sukcesu
-    form.style.display = "none";
-    successMessage.classList.add("is-visible");
-    successMessage.innerHTML = `
-      <strong>Dziękujemy za wiadomość!</strong><br>
-      Wkrótce się z Tobą skontaktujemy.
-    `;
+    try {
+      const formData = new FormData(form);
+      const data = {
+        name: formData.get("name") as string,
+        email: formData.get("email") as string,
+        company: (formData.get("company") as string) || undefined,
+        phone: (formData.get("phone") as string) || undefined,
+        message: formData.get("message") as string
+      };
 
-    // Reset formularza po 5 sekundach (dla demonstracji)
-    setTimeout(() => {
+      await contactApi.submit(data);
+
+      // Pokaż komunikat sukcesu
+      form.style.display = "none";
+      successMessage.classList.add("is-visible");
+      successMessage.innerHTML = `
+        <strong>Dziękujemy za wiadomość!</strong><br>
+        Otrzymaliśmy Twoją wiadomość i skontaktujemy się z Tobą w ciągu 24 godzin.
+      `;
+
+      // Reset formularza
       form.reset();
-      form.style.display = "flex";
-      successMessage.classList.remove("is-visible");
-    }, 5000);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Nie udało się wysłać wiadomości. Spróbuj ponownie później.";
+      notifications.error(errorMessage);
+    } finally {
+      // Przywróć przycisk
+      submitButton.disabled = false;
+      submitButton.textContent = originalText || "Wyślij wiadomość";
+    }
   });
 }
 
@@ -136,16 +136,20 @@ async function loadContent() {
 
     // Update Intro section
     const introData = contentMap.get("COOP_INTRO");
-    if (introData) {
-      const titleEl = document.querySelector(
-        "[data-content-section='COOP_INTRO'][data-content-field='title']"
+    const introSection = document.querySelector(
+      "[data-content-section='COOP_INTRO']"
+    ) as HTMLElement | null;
+    
+    if (introData && introSection) {
+      const titleEl = introSection.querySelector(
+        "[data-content-field='title']"
       );
       if (titleEl && introData.title) {
         titleEl.textContent = introData.title;
       }
 
-      const paragraphsEl = document.querySelector(
-        "[data-content-section='COOP_INTRO'][data-content-field='paragraphs']"
+      const paragraphsEl = introSection.querySelector(
+        "[data-content-field='paragraphs']"
       );
       if (paragraphsEl && introData.paragraphs && Array.isArray(introData.paragraphs)) {
         paragraphsEl.innerHTML = introData.paragraphs
@@ -156,34 +160,49 @@ async function loadContent() {
 
     // Update Gallery section
     const galleryData = contentMap.get("COOP_GALLERY");
-    if (galleryData) {
-      const titleEl = document.querySelector(
-        "[data-content-section='COOP_GALLERY'][data-content-field='title']"
+    const gallerySection = document.querySelector(
+      "[data-content-section='COOP_GALLERY']"
+    ) as HTMLElement | null;
+    
+    if (galleryData && gallerySection) {
+      const titleEl = gallerySection.querySelector(
+        "[data-content-field='title']"
       );
       if (titleEl && galleryData.title) {
         titleEl.textContent = galleryData.title;
       }
 
-      const subtitleEl = document.querySelector(
-        "[data-content-section='COOP_GALLERY'][data-content-field='subtitle']"
+      const subtitleEl = gallerySection.querySelector(
+        "[data-content-field='subtitle']"
       );
       if (subtitleEl && galleryData.subtitle) {
         subtitleEl.textContent = galleryData.subtitle;
       }
+
+      // Initialize gallery slider with images from API
+      const images = Array.isArray(galleryData.images) ? galleryData.images : [];
+      initGallerySlider(images);
+    } else {
+      // If no gallery data, hide the section
+      initGallerySlider([]);
     }
 
     // Update Contact section
     const contactData = contentMap.get("COOP_CONTACT");
-    if (contactData) {
-      const titleEl = document.querySelector(
-        "[data-content-section='COOP_CONTACT'][data-content-field='title']"
+    const contactSection = document.querySelector(
+      "[data-content-section='COOP_CONTACT']"
+    ) as HTMLElement | null;
+    
+    if (contactData && contactSection) {
+      const titleEl = contactSection.querySelector(
+        "[data-content-field='title']"
       );
       if (titleEl && contactData.title) {
         titleEl.textContent = contactData.title;
       }
 
-      const subtitleEl = document.querySelector(
-        "[data-content-section='COOP_CONTACT'][data-content-field='subtitle']"
+      const subtitleEl = contactSection.querySelector(
+        "[data-content-field='subtitle']"
       );
       if (subtitleEl && contactData.subtitle) {
         subtitleEl.textContent = contactData.subtitle;

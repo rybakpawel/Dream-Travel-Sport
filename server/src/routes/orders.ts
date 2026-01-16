@@ -141,12 +141,44 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
       }
     });
 
-  function generateOrderNumber(): string {
+  /**
+   * Generuje unikalny numer zamówienia z retry w przypadku kolizji.
+   * Sprawdza unikalność w bazie danych i próbuje ponownie (max 10 prób).
+   * @param tx - Prisma transaction client
+   */
+  async function generateUniqueOrderNumber(tx: {
+    order: { findUnique: (args: { where: { orderNumber: string }; select: { id: true } }) => Promise<{ id: string } | null> };
+  }): Promise<string> {
     const year = new Date().getFullYear();
-    const random = Math.floor(Math.random() * 1000000)
-      .toString()
-      .padStart(6, "0");
-    return `DTS-${year}-${random}`;
+    const maxAttempts = 10;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const random = Math.floor(Math.random() * 1000000)
+        .toString()
+        .padStart(6, "0");
+      const orderNumber = `DTS-${year}-${random}`;
+
+      // Sprawdź czy numer już istnieje w bazie
+      const exists = await tx.order.findUnique({
+        where: { orderNumber },
+        select: { id: true }
+      });
+
+      if (!exists) {
+        return orderNumber;
+      }
+
+      // Jeśli to nie ostatnia próba, kontynuuj pętlę
+      if (attempt < maxAttempts - 1) {
+        // Krótkie opóźnienie przed kolejną próbą (zmniejsza szansę na kolizję przy równoczesnych requestach)
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+
+    // Jeśli nie udało się wygenerować unikalnego numeru po maxAttempts próbach
+    throw new Error(
+      `Failed to generate unique order number after ${maxAttempts} attempts`
+    );
   }
 
   const lookupOrderSchema = z.object({
@@ -396,111 +428,9 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
         }
       }
 
-      // Walidacja: sprawdź dostępność miejsc dla każdego wyjazdu
-      // Pobierz aktualne dane o dostępności (przed transakcją, aby uniknąć race condition)
-      type AvailabilityCheck = {
-        tripId: string;
-        available: boolean;
-        tripName: string;
-        seatsLeft: number | null;
-        capacity: number | null;
-        requestedQty: number;
-        trip: {
-          id: string;
-          name: string;
-          capacity: number;
-          seatsLeft: number;
-          availability: TripAvailability;
-        } | null;
-      };
-
-      const availabilityChecks: AvailabilityCheck[] = await Promise.all(
-        body.items.map(async (item) => {
-          const trip = tripMap.get(item.tripId);
-          if (!trip) {
-            return {
-              tripId: item.tripId,
-              available: false,
-              tripName: "Unknown",
-              seatsLeft: null,
-              capacity: null,
-              requestedQty: item.qty,
-              trip: null
-            };
-          }
-
-          // Pobierz aktualne dane o wyjeździe (z bazy, nie z mapy)
-          const currentTrip = await prisma.trip.findUnique({
-            where: { id: item.tripId },
-            select: { id: true, name: true, capacity: true, seatsLeft: true, availability: true }
-          });
-
-          if (!currentTrip) {
-            return {
-              tripId: item.tripId,
-              available: false,
-              tripName: trip.name,
-              seatsLeft: null,
-              capacity: null,
-              requestedQty: item.qty,
-              trip: null
-            };
-          }
-
-          // Sprawdź dostępność
-          const hasCapacity =
-            currentTrip.capacity === null ||
-            currentTrip.seatsLeft === null ||
-            currentTrip.seatsLeft >= item.qty;
-          const isOpen = currentTrip.availability === "OPEN";
-
-          return {
-            tripId: item.tripId,
-            available: hasCapacity && isOpen,
-            tripName: currentTrip.name,
-            seatsLeft: currentTrip.seatsLeft,
-            capacity: currentTrip.capacity,
-            requestedQty: item.qty,
-            trip: currentTrip
-          };
-        })
-      );
-
-      // Zaktualizuj tripMap z aktualnymi danymi (dla aktualizacji seatsLeft w transakcji)
-      for (const check of availabilityChecks) {
-        if (check.trip) {
-          const fullTrip = tripMap.get(check.tripId);
-          if (fullTrip) {
-            tripMap.set(check.tripId, {
-              ...fullTrip,
-              seatsLeft: check.trip.seatsLeft,
-              availability: check.trip.availability
-            });
-          }
-        }
-      }
-
-      // Sprawdź czy wszystkie wyjazdy mają dostępne miejsca
-      const unavailableTrips = availabilityChecks.filter((check) => !check.available);
-      if (unavailableTrips.length > 0) {
-        const details = unavailableTrips.map((check) => {
-          if (check.seatsLeft === null || check.capacity === null) {
-            return {
-              path: "items",
-              message: `Wyjazd "${check.tripName}" nie ma dostępnych miejsc`
-            };
-          }
-          return {
-            path: "items",
-            message: `Wyjazd "${check.tripName}" ma tylko ${check.seatsLeft} dostępnych miejsc, a próbujesz zarezerwować ${check.requestedQty}`
-          };
-        });
-
-        return res.status(400).json({
-          error: "Validation error",
-          details
-        });
-      }
+      // UWAGA: Nie sprawdzamy dostępności przed transakcją - rezerwacja miejsc odbywa się atomowo
+      // w transakcji na początku, przed utworzeniem zamówienia. Jeśli rezerwacja się nie powiedzie,
+      // transakcja się cofa automatycznie i zamówienie nie jest tworzone.
 
       // Oblicz totalCents (przed zniżką z punktów), używając ceny z koszyka (jeśli dostępna)
       let totalCents = 0;
@@ -561,7 +491,70 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
 
       // Utwórz zamówienie w transakcji
       const order = await prisma.$transaction(async (tx) => {
-        // Znajdź lub utwórz User (potrzebujemy tylko userId do przypięcia do zamówienia)
+        // KROK 1: Najpierw zarezerwuj miejsca atomowo (przed utworzeniem zamówienia)
+        // Jeśli rezerwacja się nie powiedzie, transakcja się cofa i zamówienie nie jest tworzone
+        for (const item of body.items) {
+          const trip = tripMap.get(item.tripId);
+          if (!trip) {
+            throw new ValidationError(`Wyjazd o ID ${item.tripId} nie istnieje`, {
+              path: "items",
+              tripId: item.tripId
+            });
+          }
+
+          // Pomiń rezerwację jeśli wyjazd nie ma ograniczonej pojemności
+          if (trip.capacity === null || trip.seatsLeft === null) {
+            continue;
+          }
+
+          // Atomowa rezerwacja miejsc - jeśli warunek nie jest spełniony, updateMany zwraca count = 0
+          const seatUpdate = await tx.trip.updateMany({
+            where: {
+              id: trip.id,
+              availability: TripAvailability.OPEN,
+              seatsLeft: { gte: item.qty }
+            },
+            data: {
+              seatsLeft: { decrement: item.qty }
+            }
+          });
+
+          if (seatUpdate.count !== 1) {
+            // Pobierz aktualne dane o dostępności dla lepszego komunikatu błędu
+            const currentTrip = await tx.trip.findUnique({
+              where: { id: trip.id },
+              select: {
+                name: true,
+                seatsLeft: true,
+                availability: true
+              }
+            });
+
+            const seatsLeft = currentTrip?.seatsLeft ?? 0;
+            const availability = currentTrip?.availability ?? TripAvailability.CLOSED;
+            const tripName = currentTrip?.name ?? trip.name;
+
+            if (availability !== TripAvailability.OPEN) {
+              throw new UnprocessableEntityError(
+                `Wyjazd "${tripName}" nie jest dostępny (status: ${availability})`,
+                { tripId: trip.id, requestedQty: item.qty, availability }
+              );
+            }
+
+            throw new UnprocessableEntityError(
+              `Wyjazd "${tripName}" ma tylko ${seatsLeft} dostępnych miejsc, a próbujesz zarezerwować ${item.qty}`,
+              { tripId: trip.id, requestedQty: item.qty, availableSeats: seatsLeft }
+            );
+          }
+
+          // Jeśli po odjęciu miejsc seatsLeft spadło do 0, zamknij wyjazd
+          await tx.trip.updateMany({
+            where: { id: trip.id, seatsLeft: 0 },
+            data: { availability: TripAvailability.CLOSED }
+          });
+        }
+
+        // KROK 2: Znajdź lub utwórz User (potrzebujemy tylko userId do przypięcia do zamówienia)
         let userId = session.userId;
 
         if (!userId) {
@@ -589,7 +582,8 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
           }
         }
 
-        const orderNumber = generateOrderNumber();
+        // KROK 3: Utwórz zamówienie (miejsca już zarezerwowane)
+        const orderNumber = await generateUniqueOrderNumber(tx);
 
         const order = await tx.order.create({
           data: {
@@ -609,7 +603,7 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
           }
         });
 
-        // Utwórz OrderItem + Passenger dla każdej pozycji
+        // KROK 4: Utwórz OrderItem + Passenger dla każdej pozycji
         for (let itemIndex = 0; itemIndex < body.items.length; itemIndex++) {
           const item = body.items[itemIndex];
           const trip = tripMap.get(item.tripId);
@@ -698,37 +692,6 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
               }
             });
           }
-
-          // Aktualizuj seatsLeft dla wyjazdu (jeśli capacity jest ustawione)
-          // Atomowa rezerwacja miejsc (chroni przed oversell przy równoległych zamówieniach)
-          const seatUpdate = await tx.trip.updateMany({
-            where: {
-              id: trip.id,
-              availability: TripAvailability.OPEN,
-              seatsLeft: { gte: item.qty }
-            },
-            data: {
-              seatsLeft: { decrement: item.qty }
-            }
-          });
-
-          if (seatUpdate.count !== 1) {
-            const currentTrip = await tx.trip.findUnique({
-              where: { id: trip.id },
-              select: { seatsLeft: true }
-            });
-            const seatsLeft = currentTrip?.seatsLeft ?? 0;
-            throw new UnprocessableEntityError(
-              `Wyjazd "${trip.name}" ma tylko ${seatsLeft} dostępnych miejsc, a próbujesz zarezerwować ${item.qty}`,
-              { tripId: trip.id, requestedQty: item.qty, availableSeats: seatsLeft }
-            );
-          }
-
-          // Jeśli po odjęciu miejsc seatsLeft spadło do 0, zamknij wyjazd
-          await tx.trip.updateMany({
-            where: { id: trip.id, seatsLeft: 0 },
-            data: { availability: TripAvailability.CLOSED }
-          });
         }
 
         // Oznacz sesję jako PAID (źródło prawdy - blokuje alternatywne ścieżki)

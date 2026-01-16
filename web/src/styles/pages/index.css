@@ -4,6 +4,7 @@
 @import "../components/notifications.css";
 @import "../components/form-validation.css";
 @import "../components/loading.css";
+@import "../components/cookies-banner.css";
 
 .hero {
   display: grid;

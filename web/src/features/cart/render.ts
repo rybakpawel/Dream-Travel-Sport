@@ -192,36 +192,77 @@ export async function renderCart({ cart, onQtyChange, onRemoveItem }: RenderCart
 
     select.addEventListener("change", async () => {
       const newQty = parseInt(select.value, 10);
-      // Sprawdź dostępność przed zmianą ilości
-      if (trip.capacity !== null && trip.seatsLeft !== null) {
+      
+      // Jeśli ilość się nie zmieniła, nie rób nic
+      if (newQty === item.qty) {
+        return;
+      }
+
+      // Pobierz aktualne dane z API przed walidacją (aby uniknąć nieaktualnych danych)
+      let currentTrip: TripFromApi | null = null;
+      try {
+        currentTrip = (await tripsApi.getBySlug(item.id)) as TripFromApi;
+      } catch (err) {
+        console.error(`Failed to load trip ${item.id} from API for validation:`, err);
+        notifications.error("Nie udało się sprawdzić dostępności. Spróbuj ponownie.");
+        // Przywróć poprzednią wartość
+        select.value = String(item.qty);
+        return;
+      }
+
+      if (!currentTrip) {
+        notifications.error("Nie udało się sprawdzić dostępności. Spróbuj ponownie.");
+        select.value = String(item.qty);
+        return;
+      }
+
+      // Sprawdź dostępność przed zmianą ilości (używając aktualnych danych z API)
+      if (currentTrip.capacity !== null && currentTrip.seatsLeft !== null) {
         const currentQtyInCart = item.qty;
         const requestedQty = newQty;
-        const availableAfterRemoving = trip.seatsLeft + currentQtyInCart; // miejsca zwolnione z obecnej ilości
+        // Miejsca dostępne po zwolnieniu obecnej ilości z koszyka
+        const availableAfterRemoving = currentTrip.seatsLeft + currentQtyInCart;
 
         if (requestedQty > availableAfterRemoving) {
           notifications.error(
-            `Wyjazd "${trip.name}" ma tylko ${availableAfterRemoving} dostępnych miejsc. Nie można zarezerwować ${requestedQty} miejsc.`
+            `Wyjazd "${currentTrip.name}" ma tylko ${availableAfterRemoving} dostępnych miejsc. Nie można zarezerwować ${requestedQty} miejsc.`
           );
           // Przywróć poprzednią wartość
           select.value = String(item.qty);
           return;
         }
+
+        // Sprawdź również status dostępności
+        if (currentTrip.availability !== "OPEN") {
+          notifications.error(
+            `Wyjazd "${currentTrip.name}" nie jest obecnie dostępny (status: ${currentTrip.availability}).`
+          );
+          select.value = String(item.qty);
+          return;
+        }
       }
+
+      // Jeśli walidacja przeszła, zmień ilość
       onQtyChange(index, newQty);
     });
     tdQty.appendChild(select);
 
     const tdPrice = document.createElement("td");
     tdPrice.setAttribute("data-label", "Cena");
-    // Użyj zapisanej ceny z koszyka (jeśli dostępna), w przeciwnym razie użyj ceny z API
+    // Zawsze używaj aktualnej ceny z API (z wybranego miejsca wylotu lub najtańszej)
     let itemPriceCents: number | null = null;
     let linePriceCents = 0;
     
-    if (item.priceCents !== undefined && item.priceCents !== null && item.priceCents > 0) {
-      // Użyj zapisanej ceny z koszyka (z wybranego miejsca wylotu)
-      itemPriceCents = item.priceCents;
-    } else if (trip.priceCents !== null && trip.priceCents !== undefined && trip.priceCents > 0) {
-      // Fallback do ceny z API (najtańsza z miejsc wylotu lub stara cena)
+    // Najpierw spróbuj pobrać cenę z wybranego miejsca wylotu
+    if (item.departurePointId && trip.departurePoints && trip.departurePoints.length > 0) {
+      const departurePoint = trip.departurePoints.find((dp) => dp.id === item.departurePointId);
+      if (departurePoint && departurePoint.priceCents > 0) {
+        itemPriceCents = departurePoint.priceCents;
+      }
+    }
+    
+    // Jeśli nie znaleziono ceny z miejsca wylotu, użyj najtańszej ceny z API
+    if (itemPriceCents === null && trip.priceCents !== null && trip.priceCents !== undefined && trip.priceCents > 0) {
       itemPriceCents = trip.priceCents;
     }
     

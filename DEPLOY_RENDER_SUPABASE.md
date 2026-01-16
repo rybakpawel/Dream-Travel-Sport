@@ -75,69 +75,21 @@ server/dist/
 
 ### Krok 2: Konfiguracja Supabase
 
-#### 2.1. Utworzenie projektu na Supabase
+📖 **Szczegółowy przewodnik:** Zobacz [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) dla kompletnej instrukcji konfiguracji Supabase.
 
-1. Zaloguj się na [supabase.com](https://supabase.com) (można przez GitHub)
-2. Kliknij "New Project"
-3. Wypełnij formularz:
-   - **Name:** `dream-travel-sports` (lub dowolna nazwa)
-   - **Database Password:** Wygeneruj silne hasło (zapisz je!)
-   - **Region:** Wybierz najbliższą (np. `West Europe` dla Polski)
-   - **Pricing Plan:** Free tier (500MB bazy)
+#### Szybkie podsumowanie
 
-4. Kliknij "Create new project"
-5. Poczekaj 2-3 minuty aż projekt się utworzy
+1. Utwórz projekt na [supabase.com](https://supabase.com)
+2. Skopiuj `DATABASE_URL` z Settings → Database → Connection string
+3. Format: `postgresql://postgres:TWOJE_HASLO@db.xxxxx.supabase.co:5432/postgres?sslmode=require`
+4. (Opcjonalnie) Przetestuj lokalnie przed deploymentem
 
-#### 2.2. Uzyskanie DATABASE_URL
-
-1. W Supabase Dashboard → Twoj projekt
-2. Przejdź do **Settings** → **Database**
-3. Przewiń do sekcji **Connection string**
-4. Wybierz **URI** (nie Session mode)
-5. Skopiuj connection string - będzie wyglądał tak:
-
-```
-postgresql://postgres:[YOUR-PASSWORD]@db.xxxxx.supabase.co:5432/postgres
-```
-
-**WAŻNE:** Zamień `[YOUR-PASSWORD]` na hasło które ustawiłeś przy tworzeniu projektu.
-
-**Pełny format dla Supabase:**
-```
-postgresql://postgres:TWOJE_HASLO@db.xxxxx.supabase.co:5432/postgres?pgbouncer=true&connection_limit=1
-```
-
-**Dlaczego `pgbouncer=true`?**
-- Supabase oferuje connection pooling przez PgBouncer
-- Zmniejsza obciążenie bazy przy wielu połączeniach
-- Dla większości aplikacji lepiej użyć direct connection bez pgbouncer
-
-**Zalecany format (direct connection):**
-```
-postgresql://postgres:TWOJE_HASLO@db.xxxxx.supabase.co:5432/postgres?sslmode=require
-```
-
-6. **Zapisz ten URL** - będziesz go potrzebował w Render
-
-#### 2.3. (Opcjonalnie) Sprawdzenie połączenia lokalnie
-
-Możesz przetestować połączenie lokalnie przed wdrożeniem:
-
-1. Skopiuj `server/env.example` do `server/.env`
-2. Ustaw `DATABASE_URL` na URL z Supabase
-3. Uruchom migracje:
-
-```bash
-npm run prisma:generate
-npm run prisma:migrate:deploy
-```
-
-4. Sprawdź czy działa:
-
-```bash
-npm run dev:server
-# Otwórz http://localhost:3001/api/health
-```
+**Zobacz SUPABASE_SETUP.md** dla:
+- Szczegółowych kroków utworzenia projektu
+- Wyjaśnienia różnych typów połączeń
+- Instrukcji testowania lokalnie
+- Rozwiązywania problemów
+- Best practices
 
 ### Krok 3: Konfiguracja Render
 

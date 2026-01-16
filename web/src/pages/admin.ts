@@ -3,7 +3,7 @@ import { notifications } from "../utils/notifications.js";
 import { showLoading, hideLoading, setButtonLoading } from "../utils/loading.js";
 import { showFieldErrors, clearFieldErrors } from "../utils/form-validation.js";
 
-const ADMIN_TOKEN_KEY = "adminToken";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 // Etykiety (UI-friendly) dla enumów z backendu
 const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -44,7 +44,6 @@ function labelFrom(map: Record<string, string>, value: unknown): string {
 }
 
 // State
-let currentToken: string | null = null;
 let currentTab = "orders";
 let currentContentSubpage = "home";
 let currentPage: Record<string, number> = {
@@ -70,13 +69,15 @@ if (!loginSection || !dashboardSection || !loginForm || !logoutBtn) {
 
 // Check if already logged in
 function checkAuth() {
-  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
-  if (token) {
-    currentToken = token;
-    showDashboard();
-  } else {
-    showLogin();
-  }
+  // Sprawdź czy użytkownik jest zalogowany (cookie jest automatycznie wysyłane)
+  // Próbujemy pobrać statystyki - jeśli się uda, użytkownik jest zalogowany
+  adminApi.getStats()
+    .then(() => {
+      showDashboard();
+    })
+    .catch(() => {
+      showLogin();
+    });
 }
 
 function showLogin() {
@@ -109,15 +110,26 @@ loginForm.addEventListener("submit", async (e) => {
 
   try {
     showLoading(loginForm);
-    // Test token by fetching stats
-    await adminApi.getStats(token);
-    // Token is valid
-    currentToken = token;
-    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    // Wyślij token do endpointu logowania
+    const response = await fetch(`${API_BASE_URL}/admin/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include", // Ważne: wysyła cookies
+      body: JSON.stringify({ token })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: "Nieprawidłowy token" }));
+      throw new Error(error.message || "Nieprawidłowy token");
+    }
+
+    // Cookie jest automatycznie ustawione przez serwer
     showDashboard();
     notifications.success("Zalogowano pomyślnie");
   } catch (err) {
-    notifications.error("Nieprawidłowy token");
+    notifications.error(err instanceof Error ? err.message : "Nieprawidłowy token");
     console.error("Login error:", err);
   } finally {
     hideLoading(loginForm);
@@ -125,19 +137,25 @@ loginForm.addEventListener("submit", async (e) => {
 });
 
 // Logout
-logoutBtn.addEventListener("click", () => {
-  currentToken = null;
-  localStorage.removeItem(ADMIN_TOKEN_KEY);
+logoutBtn.addEventListener("click", async () => {
+  try {
+    // Wyślij żądanie wylogowania
+    await fetch(`${API_BASE_URL}/admin/logout`, {
+      method: "POST",
+      credentials: "include" // Ważne: wysyła cookies
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+  }
+  
   showLogin();
   notifications.info("Wylogowano");
 });
 
 // Load Stats
 async function loadStats() {
-  if (!currentToken) return;
-
   try {
-    const stats = await adminApi.getStats(currentToken);
+    const stats = await adminApi.getStats();
 
     document.getElementById("stat-trips")!.textContent = String(stats.trips.total);
     document.getElementById("stat-orders")!.textContent = String(stats.orders.total);
@@ -185,8 +203,6 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 
 // Load Tab Content
 async function loadTab(tab: string) {
-  if (!currentToken) return;
-
   switch (tab) {
     case "orders":
       await loadOrders();
@@ -213,8 +229,6 @@ async function loadTab(tab: string) {
 
 // Load Orders
 async function loadOrders(page = 1) {
-  if (!currentToken) return;
-
   const container = document.getElementById("orders-table-container");
   if (!container) return;
 
@@ -227,7 +241,6 @@ async function loadOrders(page = 1) {
   try {
     showLoading(container);
     const response = await adminApi.getOrders(
-      currentToken,
       page,
       50,
       showOverdueManualTransfers ? undefined : statusFilter,
@@ -259,10 +272,8 @@ async function loadOrders(page = 1) {
 }
 
 async function loadOrderDetails(orderId: string, container: HTMLElement) {
-  if (!currentToken) return;
-
   try {
-    const order = await adminApi.getOrder(currentToken, orderId);
+    const order = await adminApi.getOrder(orderId);
     renderOrderDetails(order as any, container);
   } catch (err) {
     console.error("Failed to load order details:", err);
@@ -562,13 +573,13 @@ function renderOrdersTable(orders: any[], pagination: any) {
   table.querySelectorAll(".btn-mark-paid").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const orderId = (btn as HTMLElement).getAttribute("data-order-id");
-      if (!orderId || !currentToken) return;
+      if (!orderId) return;
       if (!confirm("Zaksięgować przelew tradycyjny i oznaczyć zamówienie jako POTWIERDZONE?")) {
         return;
       }
 
       try {
-        await adminApi.markManualTransferPaid(currentToken, orderId);
+        await adminApi.markManualTransferPaid(orderId);
         notifications.success("Przelew został zaksięgowany");
         await loadOrders(currentPage.orders);
         await loadStats();
@@ -582,13 +593,13 @@ function renderOrdersTable(orders: any[], pagination: any) {
   table.querySelectorAll(".btn-cancel-order").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const orderId = (btn as HTMLElement).getAttribute("data-order-id");
-      if (!orderId || !currentToken) return;
+      if (!orderId) return;
       if (!confirm("Anulować zamówienie i zwolnić miejsca?")) {
         return;
       }
 
       try {
-        await adminApi.cancelManualTransferOrder(currentToken, orderId);
+        await adminApi.cancelManualTransferOrder(orderId);
         notifications.success("Zamówienie zostało anulowane");
         await loadOrders(currentPage.orders);
         await loadStats();
@@ -604,14 +615,12 @@ function renderOrdersTable(orders: any[], pagination: any) {
 
 // Load Trips
 async function loadTrips(page = 1) {
-  if (!currentToken) return;
-
   const container = document.getElementById("trips-table-container");
   if (!container) return;
 
   try {
     showLoading(container);
-    const response = await adminApi.getTrips(currentToken, page, 50);
+    const response = await adminApi.getTrips(page, 50);
 
     // Sprawdź czy odpowiedź ma poprawną strukturę
     if (!response || !response.data || !response.pagination) {
@@ -778,10 +787,8 @@ function closeTripModal() {
 }
 
 async function loadTripForEdit(tripId: string) {
-  if (!currentToken) return;
-
   try {
-    const trip = (await adminApi.getTrip(currentToken, tripId)) as any;
+    const trip = (await adminApi.getTrip(tripId)) as any;
     if (!trip) {
       notifications.error("Nie udało się załadować danych wyjazdu: brak danych");
       return;
@@ -1126,8 +1133,6 @@ function setupDeparturePointsListeners() {
 let isSavingTrip = false;
 
 async function saveTrip(formData: FormData) {
-  if (!currentToken) return;
-
   // Zapobiegaj wielokrotnemu wywołaniu
   if (isSavingTrip) {
     console.warn("saveTrip already in progress, ignoring duplicate call");
@@ -1299,7 +1304,7 @@ async function saveTrip(formData: FormData) {
   const heroImageFile = formData.get("heroImage") as File | null;
   if (heroImageFile && heroImageFile.size > 0) {
     try {
-      const uploadResult = await adminApi.uploadImage(currentToken, heroImageFile);
+      const uploadResult = await adminApi.uploadImage(heroImageFile);
       data.heroImagePath = uploadResult.path;
     } catch (err) {
       notifications.error(`Nie udało się przesłać obrazu hero: ${err instanceof Error ? err.message : "Nieznany błąd"}`);
@@ -1315,7 +1320,7 @@ async function saveTrip(formData: FormData) {
   const cardImageFile = formData.get("cardImage") as File | null;
   if (cardImageFile && cardImageFile.size > 0) {
     try {
-      const uploadResult = await adminApi.uploadImage(currentToken, cardImageFile);
+      const uploadResult = await adminApi.uploadImage(cardImageFile);
       data.cardImagePath = uploadResult.path;
     } catch (err) {
       notifications.error(`Nie udało się przesłać obrazu karty: ${err instanceof Error ? err.message : "Nieznany błąd"}`);
@@ -1332,10 +1337,10 @@ async function saveTrip(formData: FormData) {
     let savedTripId: string;
     if (currentEditingTripId) {
       console.log("Sending update data:", JSON.stringify(data, null, 2));
-      await adminApi.updateTrip(currentToken, currentEditingTripId, data);
+      await adminApi.updateTrip(currentEditingTripId, data);
       savedTripId = currentEditingTripId;
     } else {
-      const newTrip = (await adminApi.createTrip(currentToken, data)) as any;
+      const newTrip = (await adminApi.createTrip(data)) as any;
       if (!newTrip || !newTrip.id) {
         throw new Error("Nie udało się utworzyć wyjazdu: brak ID w odpowiedzi");
       }
@@ -1348,11 +1353,11 @@ async function saveTrip(formData: FormData) {
     if (currentEditingTripId) {
       // Pobierz istniejące miejsca wylotu i usuń je
       try {
-        const existingTrip = (await adminApi.getTrip(currentToken, savedTripId)) as any;
+        const existingTrip = (await adminApi.getTrip(savedTripId)) as any;
         if (existingTrip.departurePoints && Array.isArray(existingTrip.departurePoints)) {
           for (const dp of existingTrip.departurePoints) {
             try {
-              await adminApi.deleteDeparturePoint(currentToken, savedTripId, dp.id);
+              await adminApi.deleteDeparturePoint(savedTripId, dp.id);
             } catch (err) {
               console.error(`Failed to delete departure point ${dp.id}:`, err);
             }
@@ -1366,7 +1371,7 @@ async function saveTrip(formData: FormData) {
     // Dodaj nowe miejsca wylotu
     for (const dp of departurePoints) {
       try {
-        await adminApi.createDeparturePoint(currentToken, savedTripId, {
+        await adminApi.createDeparturePoint(savedTripId, {
           city: dp.city,
           priceCents: dp.priceCents,
           currency: "PLN",
@@ -1439,8 +1444,6 @@ async function saveTrip(formData: FormData) {
 }
 
 async function toggleTripActive(tripId: string, isActive: boolean) {
-  if (!currentToken) return;
-
   const action = isActive ? "aktywować" : "deaktywować";
   if (!confirm(`Czy na pewno chcesz ${action} ten wyjazd?`)) {
     return;
@@ -1448,10 +1451,10 @@ async function toggleTripActive(tripId: string, isActive: boolean) {
 
   try {
     if (isActive) {
-      await adminApi.activateTrip(currentToken, tripId);
+      await adminApi.activateTrip(tripId);
       notifications.success("Wyjazd został aktywowany");
     } else {
-      await adminApi.deactivateTrip(currentToken, tripId);
+      await adminApi.deactivateTrip(tripId);
       notifications.success("Wyjazd został deaktywowany");
     }
     // Przeładuj listę wyjazdów
@@ -1539,14 +1542,12 @@ function renderTripsTable(trips: any[], pagination: any) {
 
 // Load Users
 async function loadUsers(page = 1) {
-  if (!currentToken) return;
-
   const container = document.getElementById("users-table-container");
   if (!container) return;
 
   try {
     showLoading(container);
-    const response = await adminApi.getUsers(currentToken, page, 50);
+    const response = await adminApi.getUsers(page, 50);
 
     // Sprawdź czy odpowiedź ma poprawną strukturę
     if (!response || !response.data || !response.pagination) {
@@ -1608,8 +1609,6 @@ function renderUsersTable(users: any[], pagination: any) {
 
 // Load Newsletter
 async function loadNewsletter(page = 1) {
-  if (!currentToken) return;
-
   const container = document.getElementById("newsletter-table-container");
   if (!container) return;
 
@@ -1623,7 +1622,7 @@ async function loadNewsletter(page = 1) {
 
   try {
     showLoading(container);
-    const response = await adminApi.getNewsletter(currentToken, page, 50, statusFilter);
+    const response = await adminApi.getNewsletter(page, 50, statusFilter);
 
     // Sprawdź czy odpowiedź ma poprawną strukturę
     if (!response || !response.data || !response.pagination) {
@@ -1795,7 +1794,6 @@ document.querySelectorAll(".sidebar-submenu-item").forEach((btn) => {
 
 // Load Content Tab
 async function loadContent() {
-  if (!currentToken) return;
   // Load first section by default if none is selected
   if (!currentContentSection) {
     const firstSubmenuItem = document.querySelector(".sidebar-submenu-item") as HTMLElement;
@@ -1817,8 +1815,6 @@ async function loadContent() {
 
 // Load Content Section (single section)
 async function loadContentSection(subpage: string, section: string) {
-  if (!currentToken) return;
-
   const pageMap: Record<string, "HOME" | "DREAM_POINTS" | "COOPERATION"> = {
     home: "HOME",
     "dream-points": "DREAM_POINTS",
@@ -1857,7 +1853,7 @@ async function loadContentSection(subpage: string, section: string) {
   try {
     // Fetch specific section directly
     // apiRequest returns data.data ?? data, so for { data: content } it returns content
-    const response = await adminApi.get(currentToken, `/content/${section}?_t=${Date.now()}`) as any;
+    const response = await adminApi.get(`/content/${section}?_t=${Date.now()}`) as any;
     
     console.log(`[admin] Raw response for ${section}:`, response);
     console.log(`[admin] Response type:`, typeof response, Array.isArray(response));
@@ -2205,7 +2201,7 @@ function renderDreamPointsEditor(editor: HTMLElement, section: string, page: str
   setupContentSaveHandler(editor, section, page);
 }
 
-// Render Cooperation Editor
+// Render Dla firm Editor (strona "Dla firm")
 function renderCooperationEditor(editor: HTMLElement, section: string, page: string, data: any) {
   // Use only data from database, no fallbacks
   const content = data || {};
@@ -2230,6 +2226,19 @@ function renderCooperationEditor(editor: HTMLElement, section: string, page: str
       ${paragraphsHtml}
     `;
   } else if (section === "COOP_GALLERY") {
+    const images = Array.isArray(content.images) ? content.images : [];
+    let imagesHtml = "";
+    
+    images.forEach((imagePath: string, index: number) => {
+      imagesHtml += `
+        <div class="gallery-image-item" data-image-path="${escapeHtml(imagePath)}" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 8px;">
+          <img src="${escapeHtml(imagePath)}" alt="Gallery image ${index + 1}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px;" />
+          <div style="flex: 1; font-size: 12px; color: var(--dt-muted); word-break: break-all;">${escapeHtml(imagePath)}</div>
+          <button type="button" class="btn-delete-image" data-image-path="${escapeHtml(imagePath)}" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Usuń</button>
+        </div>
+      `;
+    });
+
     html = `
       <div class="content-field">
         <label>Tytuł</label>
@@ -2238,6 +2247,17 @@ function renderCooperationEditor(editor: HTMLElement, section: string, page: str
       <div class="content-field">
         <label>Podtytuł</label>
         <textarea data-field="subtitle" rows="2">${escapeHtml(content.subtitle || "")}</textarea>
+      </div>
+      <div class="content-field">
+        <label>Zdjęcia galerii</label>
+        <div data-gallery-content='${JSON.stringify(images)}' style="display: none;"></div>
+        <div id="gallery-images-list" style="margin-top: 8px;">
+          ${imagesHtml || '<p style="color: var(--dt-muted); font-size: 12px;">Brak zdjęć. Dodaj pierwsze zdjęcie poniżej.</p>'}
+        </div>
+        <div style="margin-top: 12px;">
+          <input type="file" id="gallery-image-upload" accept="image/jpeg,image/png,image/webp,image/gif" style="display: none;" />
+          <button type="button" id="gallery-add-image-btn" style="padding: 8px 16px; background: var(--dt-gold); color: var(--dt-dark); border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Dodaj zdjęcie</button>
+        </div>
       </div>
     `;
   } else if (section === "COOP_CONTACT") {
@@ -2280,6 +2300,11 @@ function renderCooperationEditor(editor: HTMLElement, section: string, page: str
 
   editor.innerHTML = html + `<button type="button" class="btn-primary content-save-btn" data-section="${section}">Zapisz</button>`;
   setupContentSaveHandler(editor, section, page);
+  
+  // Setup gallery image handlers AFTER setting innerHTML (only for COOP_GALLERY)
+  if (section === "COOP_GALLERY") {
+    setupGalleryImageHandlers(editor, section);
+  }
 }
 
 // Setup Content Save Handler
@@ -2295,8 +2320,6 @@ function setupContentSaveHandler(editor: HTMLElement, section: string, page: str
   saveBtn.parentNode?.replaceChild(newSaveBtn, saveBtn);
 
   newSaveBtn.addEventListener("click", async () => {
-    if (!currentToken) return;
-
     // Collect data from all fields
     const data: any = {};
     const fields = editor.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-field]");
@@ -2345,10 +2368,18 @@ function setupContentSaveHandler(editor: HTMLElement, section: string, page: str
       data.badges = data.badges.filter((badge: string) => badge && badge.trim() !== "");
     }
 
+    // For COOP_GALLERY, preserve existing images array
+    if (section === "COOP_GALLERY") {
+      const existingContent = editor.querySelector("[data-gallery-content]") as HTMLElement;
+      if (existingContent) {
+        const existingImages = JSON.parse(existingContent.getAttribute("data-gallery-content") || "[]");
+        data.images = existingImages;
+      }
+    }
     
     try {
       setButtonLoading(newSaveBtn, true, "Zapisywanie...");
-      const response = await adminApi.put(currentToken, `/content/${section}`, {
+      const response = await adminApi.put(`/content/${section}`, {
         page,
         data
       });
@@ -2374,6 +2405,116 @@ function setupContentSaveHandler(editor: HTMLElement, section: string, page: str
     }
   });
   
+}
+
+// Setup Gallery Image Handlers (for COOP_GALLERY)
+function setupGalleryImageHandlers(editor: HTMLElement, section: string) {
+  if (section !== "COOP_GALLERY") return;
+  const uploadInput = editor.querySelector("#gallery-image-upload") as HTMLInputElement;
+  const addBtn = editor.querySelector("#gallery-add-image-btn") as HTMLButtonElement;
+  const imagesList = editor.querySelector("#gallery-images-list") as HTMLElement;
+
+  if (!uploadInput || !addBtn || !imagesList) {
+    console.warn("[admin] Gallery image handlers: missing elements", { uploadInput: !!uploadInput, addBtn: !!addBtn, imagesList: !!imagesList });
+    return;
+  }
+
+  // Handle add image button click
+  addBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("[admin] Add image button clicked");
+    uploadInput.click();
+  });
+
+  // Handle file selection
+  uploadInput.addEventListener("change", async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+      setButtonLoading(addBtn, true, "Dodawanie...");
+      
+      // Upload image using FormData
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      console.log("[admin] Uploading gallery image...");
+      const response = await fetch(`${API_BASE_URL}/admin/content/COOP_GALLERY/images`, {
+        method: "POST",
+        credentials: "include",
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Nie udało się dodać zdjęcia" }));
+        throw new Error(error.message || "Nie udało się dodać zdjęcia");
+      }
+
+      const result = await response.json();
+      console.log("[admin] Gallery image uploaded:", result);
+
+      // Reload gallery section to show updated images
+      const activeSubmenuItem = document.querySelector(".sidebar-submenu-item.active") as HTMLElement;
+      if (activeSubmenuItem) {
+        const subpage = activeSubmenuItem.getAttribute("data-subpage");
+        if (subpage) {
+          await loadContentSection(subpage, "COOP_GALLERY");
+        }
+      }
+      
+      notifications.success("Zdjęcie zostało dodane");
+    } catch (err) {
+      console.error("[admin] Failed to upload gallery image:", err);
+      notifications.error(err instanceof Error ? err.message : "Nie udało się dodać zdjęcia");
+    } finally {
+      setButtonLoading(addBtn, false);
+      uploadInput.value = "";
+    }
+  });
+
+  // Handle delete image buttons (delegated event listener)
+  imagesList.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains("btn-delete-image")) return;
+    
+    const imagePath = target.getAttribute("data-image-path");
+    if (!imagePath) return;
+
+    if (!confirm("Czy na pewno chcesz usunąć to zdjęcie?")) return;
+
+    try {
+      setButtonLoading(target as HTMLButtonElement, true, "Usuwanie...");
+      
+      const response = await fetch(`${API_BASE_URL}/admin/content/COOP_GALLERY/images`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ imagePath })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Nie udało się usunąć zdjęcia" }));
+        throw new Error(error.message || "Nie udało się usunąć zdjęcia");
+      }
+
+      // Reload gallery section to show updated images
+      const activeSubmenuItem = document.querySelector(".sidebar-submenu-item.active") as HTMLElement;
+      if (activeSubmenuItem) {
+        const subpage = activeSubmenuItem.getAttribute("data-subpage");
+        if (subpage) {
+          await loadContentSection(subpage, "COOP_GALLERY");
+        }
+      }
+      
+      notifications.success("Zdjęcie zostało usunięte");
+    } catch (err) {
+      notifications.error(err instanceof Error ? err.message : "Nie udało się usunąć zdjęcia");
+      setButtonLoading(target as HTMLButtonElement, false);
+    }
+  });
 }
 
 // Helper function to escape HTML
@@ -2660,9 +2801,9 @@ function setupTripModalListeners() {
         heroImageRemoveBtn.addEventListener("click", async () => {
           // Jeśli istnieje zapisana ścieżka, usuń plik z serwera
           const existingPath = heroImagePathInput.value;
-          if (existingPath && currentToken) {
+          if (existingPath) {
             try {
-              await adminApi.deleteImage(currentToken, existingPath);
+              await adminApi.deleteImage(existingPath);
             } catch (err) {
               console.error("Failed to delete image from server:", err);
               // Kontynuuj usuwanie z podglądu nawet jeśli usunięcie z serwera się nie powiodło
@@ -2700,9 +2841,9 @@ function setupTripModalListeners() {
         cardImageRemoveBtn.addEventListener("click", async () => {
           // Jeśli istnieje zapisana ścieżka, usuń plik z serwera
           const existingPath = cardImagePathInput.value;
-          if (existingPath && currentToken) {
+          if (existingPath) {
             try {
-              await adminApi.deleteImage(currentToken, existingPath);
+              await adminApi.deleteImage(existingPath);
             } catch (err) {
               console.error("Failed to delete image from server:", err);
               // Kontynuuj usuwanie z podglądu nawet jeśli usunięcie z serwera się nie powiodło

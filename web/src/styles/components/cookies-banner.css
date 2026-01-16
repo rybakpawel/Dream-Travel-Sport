@@ -1,0 +1,114 @@
+/* Cookies Banner */
+#cookies-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to right, var(--dt-navy-dark), #020712);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 32px;
+  display: none; /* Ukryte domyślnie, pokazuje się przez JS */
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  z-index: 1000;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  flex-wrap: wrap;
+}
+
+#cookies-banner.show {
+  display: flex;
+}
+
+.cookies-banner-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--dt-light);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cookies-banner-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dt-gold);
+  font-size: 18px;
+}
+
+.cookies-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cookies-banner-text a {
+  color: var(--dt-gold);
+  text-decoration: underline;
+}
+
+.cookies-banner-text a:hover {
+  opacity: 0.8;
+}
+
+.cookies-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#cookies-accept {
+  background: var(--dt-gold);
+  color: #111;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+
+#cookies-accept:hover {
+  background: #f8c030;
+  transform: translateY(-1px);
+}
+
+#cookies-accept:active {
+  transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 840px) {
+  #cookies-banner {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .cookies-banner-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .cookies-banner-actions {
+    width: 100%;
+  }
+
+  #cookies-accept {
+    width: 100%;
+    padding: 12px 20px;
+  }
+}
+

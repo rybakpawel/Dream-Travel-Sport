@@ -52,6 +52,15 @@ export function addTrip(
   return next;
 }
 
+/**
+ * Zmienia ilość pozycji w koszyku.
+ * UWAGA: Ta funkcja nie sprawdza dostępności miejsc - walidacja dostępności
+ * powinna być wykonana przed wywołaniem tej funkcji (np. w event listenerze select'a).
+ * @param cart - Koszyk
+ * @param index - Indeks pozycji w koszyku
+ * @param qty - Nowa ilość (zostanie ograniczona do MAX_QTY_PER_TRIP)
+ * @returns Nowy koszyk z zaktualizowaną ilością
+ */
 export function setItemQty(cart: Cart, index: number, qty: number): Cart {
   if (!Number.isFinite(index) || index < 0 || index >= cart.length) return cart;
   if (!Number.isFinite(qty)) return cart;

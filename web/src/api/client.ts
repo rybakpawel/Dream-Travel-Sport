@@ -288,6 +288,18 @@ export const ordersApi = {
     })
 };
 
+// Contact API
+export const contactApi = {
+  submit: (data: { name: string; email: string; company?: string; phone?: string; message: string }) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+    }>("/contact", {
+      method: "POST",
+      body: JSON.stringify(data)
+    })
+};
+
 // Payments API
 export const paymentsApi = {
   create: (
@@ -312,7 +324,7 @@ export const paymentsApi = {
 
 // Admin API
 export const adminApi = {
-  getStats: (token: string) =>
+  getStats: () =>
     apiRequest<{
       trips: { total: number };
       orders: {
@@ -326,13 +338,10 @@ export const adminApi = {
       newsletter: { subscribers: number };
       revenue: { totalCents: number };
     }>("/admin/stats", {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include" // Wysyła cookies automatycznie
     }),
 
   getOrders: (
-    token: string,
     page?: number,
     limit?: number,
     status?: string,
@@ -348,20 +357,16 @@ export const adminApi = {
       data: Array<unknown>;
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }>(`/admin/orders${query ? `?${query}` : ""}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     });
   },
 
-  getOrder: (token: string, id: string) =>
+  getOrder: (id: string) =>
     apiRequest<unknown>(`/admin/orders/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  markManualTransferPaid: (token: string, orderId: string) =>
+  markManualTransferPaid: (orderId: string) =>
     apiRequest<{
       success: boolean;
       orderId: string;
@@ -370,12 +375,10 @@ export const adminApi = {
       paymentId: string | null;
     }>(`/admin/orders/${orderId}/manual-transfer/mark-paid`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  cancelManualTransferOrder: (token: string, orderId: string) =>
+  cancelManualTransferOrder: (orderId: string) =>
     apiRequest<{
       success: boolean;
       orderId: string;
@@ -383,12 +386,10 @@ export const adminApi = {
       orderStatus: string;
     }>(`/admin/orders/${orderId}/manual-transfer/cancel`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  getTrips: (token: string, page?: number, limit?: number) => {
+  getTrips: (page?: number, limit?: number) => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
@@ -397,100 +398,78 @@ export const adminApi = {
       data: Array<unknown>;
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }>(`/admin/trips${query ? `?${query}` : ""}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     });
   },
 
-  getTrip: (token: string, id: string) =>
+  getTrip: (id: string) =>
     apiRequest<unknown>(`/admin/trips/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  createTrip: (token: string, data: Record<string, unknown>) =>
+  createTrip: (data: Record<string, unknown>) =>
     apiRequest<unknown>("/admin/trips", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      credentials: "include",
       body: JSON.stringify(data)
     }),
 
-  updateTrip: (token: string, id: string, data: Record<string, unknown>) =>
+  updateTrip: (id: string, data: Record<string, unknown>) =>
     apiRequest<unknown>(`/admin/trips/${id}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      credentials: "include",
       body: JSON.stringify(data)
     }),
 
   // Departure Points (Miejsca wylotu)
   createDeparturePoint: (
-    token: string,
     tripId: string,
     data: { city: string; priceCents: number; currency?: string; isActive?: boolean; sortOrder?: number }
   ) =>
     apiRequest<unknown>(`/admin/trips/${tripId}/departure-points`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      credentials: "include",
       body: JSON.stringify(data)
     }),
 
   updateDeparturePoint: (
-    token: string,
     tripId: string,
     departurePointId: string,
     data: { city?: string; priceCents?: number; currency?: string; isActive?: boolean; sortOrder?: number }
   ) =>
     apiRequest<unknown>(`/admin/trips/${tripId}/departure-points/${departurePointId}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      credentials: "include",
       body: JSON.stringify(data)
     }),
 
-  deleteDeparturePoint: (token: string, tripId: string, departurePointId: string) =>
+  deleteDeparturePoint: (tripId: string, departurePointId: string) =>
     apiRequest<{ message: string }>(`/admin/trips/${tripId}/departure-points/${departurePointId}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  deactivateTrip: (token: string, id: string) =>
+  deactivateTrip: (id: string) =>
     apiRequest<{ message: string }>(`/admin/trips/${id}/deactivate`, {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  activateTrip: (token: string, id: string) =>
+  activateTrip: (id: string) =>
     apiRequest<{ message: string }>(`/admin/trips/${id}/activate`, {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  uploadImage: async (token: string, file: File): Promise<{ path: string; filename: string }> => {
+  uploadImage: async (file: File): Promise<{ path: string; filename: string }> => {
     const formData = new FormData();
     formData.append("image", file);
 
     const url = `${API_BASE_URL}/admin/upload`;
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`
-        // Nie ustawiaj Content-Type - przeglądarka ustawi to automatycznie z boundary dla FormData
-      },
+      credentials: "include",
+      // Nie ustawiaj Content-Type - przeglądarka ustawi to automatycznie z boundary dla FormData
       body: formData
     });
 
@@ -503,7 +482,7 @@ export const adminApi = {
     return data;
   },
 
-  deleteImage: async (token: string, imagePath: string): Promise<void> => {
+  deleteImage: async (imagePath: string): Promise<void> => {
     // Wyciągnij nazwę pliku ze ścieżki (np. /assets/trips/filename.jpg -> filename.jpg)
     const filename = imagePath.split("/").pop();
     if (!filename) {
@@ -513,9 +492,7 @@ export const adminApi = {
     const url = `${API_BASE_URL}/admin/upload/${filename}`;
     const response = await fetch(url, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     });
 
     if (!response.ok) {
@@ -524,7 +501,7 @@ export const adminApi = {
     }
   },
 
-  getUsers: (token: string, page?: number, limit?: number) => {
+  getUsers: (page?: number, limit?: number) => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
@@ -533,13 +510,11 @@ export const adminApi = {
       data: Array<unknown>;
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }>(`/admin/users${query ? `?${query}` : ""}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     });
   },
 
-  getNewsletter: (token: string, page?: number, limit?: number, status?: string) => {
+  getNewsletter: (page?: number, limit?: number, status?: string) => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
@@ -549,26 +524,20 @@ export const adminApi = {
       data: Array<unknown>;
       pagination: { page: number; limit: number; total: number; totalPages: number };
     }>(`/admin/newsletter${query ? `?${query}` : ""}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     });
   },
 
   // Content management
-  get: (token: string, endpoint: string) =>
+  get: (endpoint: string) =>
     apiRequest(`/admin${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include"
     }),
 
-  put: (token: string, endpoint: string, body: unknown) =>
+  put: (endpoint: string, body: unknown) =>
     apiRequest(`/admin${endpoint}`, {
       method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
+      credentials: "include",
       body: JSON.stringify(body)
     })
 };

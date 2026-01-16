@@ -52,7 +52,7 @@
         <nav class="main-nav">
           <a href="index.html#dlaczego">Dlaczego my</a>
           <a href="dream-points.html">Dream Points</a>
-          <a href="wspolpraca.html">Współpraca</a>
+          <a href="wspolpraca.html">Dla firm</a>
         </nav>
         <div class="nav-cta">
           <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
@@ -71,7 +71,7 @@
         <nav>
           <a href="index.html#dlaczego">Dlaczego my</a>
           <a href="dream-points.html">Dream Points</a>
-          <a href="wspolpraca.html">Współpraca</a>
+          <a href="wspolpraca.html">Dla firm</a>
         </nav>
         <div class="mobile-nav-cta">
           <a class="btn-primary" href="index.html#oferta">Sprawdź wyjazdy</a>
@@ -160,11 +160,38 @@
     <footer>
       © 2025 Dream Travel Sport – sportowe wyjazdy premium. Wszystkie prawa zastrzeżone.
       <br />
-      <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline; margin-top: 8px; display: inline-block;">Regulamin</a>
+      <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center;">
+        <a href="/assets/regulamin.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline;">Regulamin</a>
+        <span style="color: var(--dt-muted);">•</span>
+        <a href="/assets/polityka-prywatnosci.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline;">Polityka Prywatności</a>
+        <span style="color: var(--dt-muted);">•</span>
+        <a href="/assets/ogolne-warunki-uczestnictwa.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline;">Ogólne Warunki Uczestnictwa</a>
+        <span style="color: var(--dt-muted);">•</span>
+        <a href="/assets/ogolne-warunki-ubezpieczenia.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline;">Ogólne Warunki Ubezpieczenia</a>
+        <span style="color: var(--dt-muted);">•</span>
+        <a href="/assets/draft-umowy.pdf" target="_blank" rel="noopener" style="color: var(--dt-gold); text-decoration: underline;">Draft Umowy</a>
+      </div>
     </footer>
+
+    <!-- Cookies Banner -->
+    <div id="cookies-banner">
+      <div class="cookies-banner-content">
+        <div class="cookies-banner-icon">
+          <i class="fa-solid fa-cookie-bite"></i>
+        </div>
+        <div class="cookies-banner-text">
+          Ta strona wykorzystuje pliki cookies w celu zapewnienia prawidłowego działania oraz analizy ruchu na stronie. 
+          Kontynuując przeglądanie, akceptujesz naszą <a href="/assets/polityka-prywatnosci.pdf" target="_blank" rel="noopener">Politykę prywatności</a>.
+        </div>
+      </div>
+      <div class="cookies-banner-actions">
+        <button type="button" id="cookies-accept">Akceptuję</button>
+      </div>
+    </div>
 
     <script type="module" src="src/utils/mobile-menu.ts"></script>
     <script type="module" src="src/features/cart/badge.ts"></script>
+    <script type="module" src="src/features/cookies-banner/index.ts"></script>
     <script type="module" src="src/pages/platnosc.ts"></script>
   </body>
 </html>
