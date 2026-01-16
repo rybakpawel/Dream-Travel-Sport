@@ -78,7 +78,7 @@ function detectImageKindFromHeader(header: Buffer): "jpeg" | "png" | "webp" | "g
   if (header[0] === 0xff && header[1] === 0xd8) {
     return "jpeg";
   }
-  
+
   if (header.length < 12) return null;
 
   // PNG: 89 50 4E 47 0D 0A 1A 0A
@@ -135,22 +135,26 @@ function verifyUploadedImage(filePath: string): "jpeg" | "png" | "webp" | "gif" 
   try {
     const header = Buffer.alloc(16);
     const bytesRead = readSync(fd, header, 0, header.length, 0);
-    
+
     if (bytesRead < 2) {
       console.error(`[admin] File too small: only ${bytesRead} bytes read`);
       return null;
     }
-    
+
     const slice = header.subarray(0, bytesRead);
     const detected = detectImageKindFromHeader(slice);
-    
-    const headerHex = Array.from(slice.slice(0, Math.min(8, bytesRead))).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ');
-    console.log(`[admin] Image verification: file=${filePath}, detected=${detected}, bytesRead=${bytesRead}, header=${headerHex}`);
-    
+
+    const headerHex = Array.from(slice.slice(0, Math.min(8, bytesRead)))
+      .map((b) => `0x${b.toString(16).padStart(2, "0")}`)
+      .join(" ");
+    console.log(
+      `[admin] Image verification: file=${filePath}, detected=${detected}, bytesRead=${bytesRead}, header=${headerHex}`
+    );
+
     if (detected === null) {
       console.error(`[admin] Could not detect image type from header. Header bytes: ${headerHex}`);
     }
-    
+
     return detected;
   } catch (err) {
     console.error(`[admin] Error reading image header:`, err);
@@ -216,25 +220,27 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     // Try to get kind from MIME type first
     let kind = ALLOWED_IMAGE_MIME[file.mimetype];
-    
+
     // If MIME type is not recognized, try to detect from original filename extension
     if (!kind) {
-      const originalExt = file.originalname.toLowerCase().split('.').pop();
+      const originalExt = file.originalname.toLowerCase().split(".").pop();
       const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
-        "jpg": "jpeg",
-        "jpeg": "jpeg",
-        "png": "png",
-        "webp": "webp",
-        "gif": "gif"
+        jpg: "jpeg",
+        jpeg: "jpeg",
+        png: "png",
+        webp: "webp",
+        gif: "gif"
       };
       kind = extToKind[originalExt || ""];
     }
-    
+
     if (!kind) {
-      console.error(`[admin] Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`);
-      return cb(new Error("Nieobsługiwany typ pliku. Dozwolone: JPG/PNG/WEBP/GIF."));
+      console.error(
+        `[admin] Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`
+      );
+      return cb(new Error("Nieobsługiwany typ pliku. Dozwolone: JPG/PNG/WEBP/GIF."), "");
     }
-    
+
     const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
     const ext = imageKindToExt(kind);
     cb(null, `${uniqueSuffix}.${ext}`);
@@ -249,22 +255,24 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     // Dozwolone tylko bezpieczne formaty rastrowe (bez SVG)
     let kind = ALLOWED_IMAGE_MIME[file.mimetype];
-    
+
     // If MIME type is not recognized, try to detect from original filename extension
     if (!kind) {
-      const originalExt = file.originalname.toLowerCase().split('.').pop();
+      const originalExt = file.originalname.toLowerCase().split(".").pop();
       const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
-        "jpg": "jpeg",
-        "jpeg": "jpeg",
-        "png": "png",
-        "webp": "webp",
-        "gif": "gif"
+        jpg: "jpeg",
+        jpeg: "jpeg",
+        png: "png",
+        webp: "webp",
+        gif: "gif"
       };
       kind = extToKind[originalExt || ""];
     }
-    
+
     if (!kind) {
-      console.error(`[admin] fileFilter: Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`);
+      console.error(
+        `[admin] fileFilter: Unsupported file type: mimetype=${file.mimetype}, originalname=${file.originalname}`
+      );
       return cb(new Error("Nieobsługiwany typ pliku. Dozwolone: JPG/PNG/WEBP/GIF."));
     }
     cb(null, true);
@@ -347,7 +355,11 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
   // Wszystkie pozostałe endpointy wymagają autentykacji admina
   router.use(createAdminAuthMiddleware(env));
 
-  function uploadSingleImage(req: express.Request, res: express.Response, next: express.NextFunction) {
+  function uploadSingleImage(
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) {
     upload.single("image")(req, res, (err) => {
       if (err) {
         return res.status(400).json({
@@ -386,10 +398,12 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
           code: "INVALID_IMAGE"
         });
       }
-      
+
       // Log if detected type doesn't match expected type (but still accept it)
       if (detectedKind !== expectedKind) {
-        console.warn(`[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`);
+        console.warn(
+          `[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`
+        );
       }
 
       // Zwróć ścieżkę względną do pliku (będzie dostępna przez /assets/trips/filename)
@@ -1325,8 +1339,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       const trip = await prisma.trip.create({
         data: {
           ...tripData,
-          startsAt: tripData.startsAt ? new Date(tripData.startsAt) : null,
-          endsAt: tripData.endsAt ? new Date(tripData.endsAt) : null
+          ...(tripData.startsAt && { startsAt: new Date(tripData.startsAt) }),
+          ...(tripData.endsAt && { endsAt: new Date(tripData.endsAt) })
         },
         select: {
           id: true,
@@ -1442,7 +1456,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       }
 
       // Użyj nowych wartości lub istniejących (w edycji pola są opcjonalne, ale jeśli istnieją w bazie, użyj ich)
-      const startsAt = data.startsAt !== undefined ? new Date(data.startsAt) : existingTrip.startsAt;
+      const startsAt =
+        data.startsAt !== undefined ? new Date(data.startsAt) : existingTrip.startsAt;
       const endsAt = data.endsAt !== undefined ? new Date(data.endsAt) : existingTrip.endsAt;
       const capacity = data.capacity !== undefined ? data.capacity : existingTrip.capacity;
       const seatsLeft = data.seatsLeft !== undefined ? data.seatsLeft : existingTrip.seatsLeft;
@@ -1475,7 +1490,6 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
           seatsLeft
         });
       }
-
 
       // Usuń stare obrazy jeśli zostały zmienione lub usunięte
       if (updateData.heroImagePath !== undefined) {
@@ -1920,10 +1934,7 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
 
       const contents = await prisma.content.findMany({
         where,
-        orderBy: [
-          { page: "asc" },
-          { section: "asc" }
-        ]
+        orderBy: [{ page: "asc" }, { section: "asc" }]
       });
 
       res.json({ data: contents });
@@ -1942,7 +1953,7 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
   router.get("/content/:section", async (req, res, next) => {
     try {
       const { section } = req.params;
-      
+
       const content = await prisma.content.findUnique({
         where: { section: section as ContentSection }
       });
@@ -2005,29 +2016,33 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
 
       // Try to detect image kind from MIME type or filename
       let expectedKind = ALLOWED_IMAGE_MIME[req.file.mimetype];
-      
+
       // If MIME type is not recognized, try to detect from filename extension
       if (!expectedKind) {
-        const fileExt = req.file.filename.toLowerCase().split('.').pop();
+        const fileExt = req.file.filename.toLowerCase().split(".").pop();
         const extToKind: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
-          "jpg": "jpeg",
-          "jpeg": "jpeg",
-          "png": "png",
-          "webp": "webp",
-          "gif": "gif"
+          jpg: "jpeg",
+          jpeg: "jpeg",
+          png: "png",
+          webp: "webp",
+          gif: "gif"
         };
         expectedKind = extToKind[fileExt || ""];
       }
-      
+
       const absPath = resolve(tripsUploadDir, req.file.filename);
 
-      console.log(`[admin] Gallery image upload: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}, expectedKind=${expectedKind}`);
+      console.log(
+        `[admin] Gallery image upload: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}, expectedKind=${expectedKind}`
+      );
       console.log(`[admin] Upload directory: ${tripsUploadDir}`);
       console.log(`[admin] Absolute path: ${absPath}`);
       console.log(`[admin] File exists: ${existsSync(absPath)}`);
 
       if (!expectedKind) {
-        console.error(`[admin] Unsupported file type: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}`);
+        console.error(
+          `[admin] Unsupported file type: mimetype=${req.file.mimetype}, originalname=${req.file.originalname}, filename=${req.file.filename}`
+        );
         try {
           if (existsSync(absPath)) {
             unlinkSync(absPath);
@@ -2035,13 +2050,13 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         } catch {}
         return res.status(400).json({
           error: "ValidationError",
-          message: `Nieobsługiwany typ pliku: ${req.file.mimetype || 'nieznany'}. Dozwolone: JPG/PNG/WEBP/GIF.`,
+          message: `Nieobsługiwany typ pliku: ${req.file.mimetype || "nieznany"}. Dozwolone: JPG/PNG/WEBP/GIF.`,
           code: "INVALID_IMAGE"
         });
       }
 
       // Wait a bit to ensure file is fully written to disk
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       if (!existsSync(absPath)) {
         console.error(`[admin] File does not exist after upload: ${absPath}`);
@@ -2063,14 +2078,17 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         } catch {}
         return res.status(400).json({
           error: "ValidationError",
-          message: "Plik nie jest poprawnym obrazem (JPG/PNG/WEBP/GIF). Sprawdź czy plik nie jest uszkodzony.",
+          message:
+            "Plik nie jest poprawnym obrazem (JPG/PNG/WEBP/GIF). Sprawdź czy plik nie jest uszkodzony.",
           code: "INVALID_IMAGE"
         });
       }
-      
+
       // Log if detected type doesn't match expected type (but still accept it)
       if (detectedKind !== expectedKind) {
-        console.warn(`[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`);
+        console.warn(
+          `[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`
+        );
       }
 
       const imagePath = `/assets/trips/${req.file.filename}`;

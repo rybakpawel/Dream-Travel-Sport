@@ -116,6 +116,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
               id: true,
               loyaltyAccount: {
                 select: {
+                  id: true,
                   pointsBalance: true
                 }
               }
@@ -154,6 +155,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
               id: true,
               loyaltyAccount: {
                 select: {
+                  id: true,
                   pointsBalance: true
                 }
               }
@@ -179,24 +181,25 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       }
 
       const loyaltyVerified = Boolean(updatedSession.userId);
-      const pointsBalance = loyaltyVerified && updatedSession.user?.loyaltyAccount?.id
-        ? await getAvailablePoints(prisma, updatedSession.user.loyaltyAccount.id)
-        : (async () => {
-            const user = await prisma.user.findUnique({
-              where: { email: updatedSession.customerEmail },
-              select: {
-                loyaltyAccount: {
-                  select: {
-                    id: true
+      const pointsBalance =
+        loyaltyVerified && updatedSession.user?.loyaltyAccount?.id
+          ? await getAvailablePoints(prisma, updatedSession.user.loyaltyAccount.id)
+          : (async () => {
+              const user = await prisma.user.findUnique({
+                where: { email: updatedSession.customerEmail },
+                select: {
+                  loyaltyAccount: {
+                    select: {
+                      id: true
+                    }
                   }
                 }
-              }
-            });
-            return user?.loyaltyAccount?.id
-              ? await getAvailablePoints(prisma, user.loyaltyAccount.id)
-              : 0;
-          })();
-      
+              });
+              return user?.loyaltyAccount?.id
+                ? await getAvailablePoints(prisma, user.loyaltyAccount.id)
+                : 0;
+            })();
+
       const resolvedPointsBalance = await pointsBalance;
 
       res.json({
@@ -242,6 +245,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
               email: true,
               loyaltyAccount: {
                 select: {
+                  id: true,
                   pointsBalance: true
                 }
               }
@@ -276,6 +280,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
             email: true,
             loyaltyAccount: {
               select: {
+                id: true,
                 pointsBalance: true
               }
             }
@@ -295,7 +300,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       if (!user || !user.loyaltyAccount?.id) {
         return genericOk();
       }
-      
+
       const availablePoints = await getAvailablePoints(prisma, user.loyaltyAccount.id);
       if (availablePoints <= 0) {
         return genericOk();
@@ -324,7 +329,8 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           message:
             "Jeśli na tym adresie są dostępne Dream Points, wysłaliśmy link do ich użycia. Sprawdź skrzynkę mailową.",
           token: env.NODE_ENV === "development" ? existingToken.token : undefined,
-          magicLink: env.NODE_ENV === "development" ? buildMagicLink(existingToken.token) : undefined
+          magicLink:
+            env.NODE_ENV === "development" ? buildMagicLink(existingToken.token) : undefined
         });
       }
 
@@ -464,7 +470,12 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
 
       // Zarezerwuj punkty (tymczasowo) - limit 20% wartości koszyka (1 pkt = 1 zł)
       const cart = Array.isArray(session.cartData)
-        ? (session.cartData as Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>)
+        ? (session.cartData as Array<{
+            id: string;
+            qty: number;
+            departurePointId?: string;
+            priceCents?: number;
+          }>)
         : [];
 
       // Oblicz całkowitą wartość koszyka, używając ceny z koszyka (jeśli dostępna) lub ceny z API
@@ -477,7 +488,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           // Fallback: pobierz cenę z API (najtańsza z miejsc wylotu)
           const cartIds = [item.id];
           // @ts-ignore - departurePoints relation exists in schema but Prisma Client needs regeneration
-          const trips = await prisma.trip.findMany({
+          const trips = (await prisma.trip.findMany({
             where: {
               OR: [{ id: { in: cartIds } }, { slug: { in: cartIds } }]
             },
@@ -489,7 +500,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
                 take: 1
               }
             }
-          }) as Array<{
+          })) as Array<{
             priceCents: number | null;
             departurePoints: Array<{ priceCents: number }>;
           }>;
@@ -497,9 +508,10 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           if (trips.length > 0) {
             const trip = trips[0];
             // Użyj najtańszej ceny z miejsc wylotu (jeśli dostępna) lub starej ceny
-            const tripPriceCents = trip.departurePoints.length > 0 
-              ? trip.departurePoints[0].priceCents 
-              : trip.priceCents ?? 0;
+            const tripPriceCents =
+              trip.departurePoints.length > 0
+                ? trip.departurePoints[0].priceCents
+                : (trip.priceCents ?? 0);
             totalCents += tripPriceCents * item.qty;
           }
         }
@@ -602,7 +614,12 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
 
       // Limit 20% wartości koszyka (1 pkt = 1 zł)
       const cart = Array.isArray(session.cartData)
-        ? (session.cartData as Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>)
+        ? (session.cartData as Array<{
+            id: string;
+            qty: number;
+            departurePointId?: string;
+            priceCents?: number;
+          }>)
         : [];
 
       // Oblicz całkowitą wartość koszyka, używając ceny z koszyka (jeśli dostępna) lub ceny z API
@@ -615,7 +632,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           // Fallback: pobierz cenę z API (najtańsza z miejsc wylotu)
           const cartIds = [item.id];
           // @ts-ignore - departurePoints relation exists in schema but Prisma Client needs regeneration
-          const trips = await prisma.trip.findMany({
+          const trips = (await prisma.trip.findMany({
             where: {
               OR: [{ id: { in: cartIds } }, { slug: { in: cartIds } }]
             },
@@ -627,7 +644,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
                 take: 1
               }
             }
-          }) as Array<{
+          })) as Array<{
             priceCents: number | null;
             departurePoints: Array<{ priceCents: number }>;
           }>;
@@ -635,9 +652,10 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           if (trips.length > 0) {
             const trip = trips[0];
             // Użyj najtańszej ceny z miejsc wylotu (jeśli dostępna) lub starej ceny
-            const tripPriceCents = trip.departurePoints.length > 0 
-              ? trip.departurePoints[0].priceCents 
-              : trip.priceCents ?? 0;
+            const tripPriceCents =
+              trip.departurePoints.length > 0
+                ? trip.departurePoints[0].priceCents
+                : (trip.priceCents ?? 0);
             totalCents += tripPriceCents * item.qty;
           }
         }
@@ -697,15 +715,17 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
             qty: z.number().int().min(1),
             departurePointId: z.string().optional(),
             priceCents: z.number().int().min(0),
-            passengers: z.array(
-              z.object({
-                firstName: z.string(),
-                lastName: z.string(),
-                birthDate: z.string(),
-                documentType: z.enum(["ID_CARD", "PASSPORT"]),
-                documentNumber: z.string()
-              })
-            ).optional()
+            passengers: z
+              .array(
+                z.object({
+                  firstName: z.string(),
+                  lastName: z.string(),
+                  birthDate: z.string(),
+                  documentType: z.enum(["ID_CARD", "PASSPORT"]),
+                  documentNumber: z.string()
+                })
+              )
+              .optional()
           })
         )
       });
@@ -721,7 +741,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
         if (!PDFDocument) {
           throw new Error("PDFDocument not found");
         }
-        
+
         // Spróbuj załadować font z pełnym wsparciem dla polskich znaków
         // Pdfkit ma wbudowane fonty, ale możemy użyć zewnętrznego fontu jeśli jest dostępny
         try {
@@ -729,12 +749,12 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           const path = await import("node:path");
           const { fileURLToPath } = await import("node:url");
           const { dirname } = await import("node:path");
-          
+
           // Sprawdź czy istnieje font w katalogu assets/fonts
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
           const fontDir = path.join(__dirname, "../../../web/public/assets/fonts");
-          
+
           // Szukaj fontu Arial lub podobnego obsługującego polskie znaki
           const possibleFonts = [
             "Arial.ttf",
@@ -743,7 +763,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
             "DejaVuSans.ttf",
             "LiberationSans-Regular.ttf"
           ];
-          
+
           for (const fontFile of possibleFonts) {
             const fontFullPath = path.join(fontDir, fontFile);
             if (fs.existsSync(fontFullPath)) {
@@ -776,8 +796,8 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       const tripMap = new Map(trips.map((t) => [t.id, t]));
 
       // Utwórz dokument PDF
-      const doc = new PDFDocument({ 
-        margin: 50, 
+      const doc = new PDFDocument({
+        margin: 50,
         size: "A4"
       });
 
@@ -817,7 +837,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       // Nagłówek dokumentu
       doc.fontSize(20).text("PODGLĄD OFERTY", { align: "center" });
       doc.moveDown();
-      
+
       // Data i godzina wygenerowania
       const now = new Date();
       const dateStr = now.toLocaleDateString("pl-PL");
@@ -825,7 +845,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       doc.fontSize(12).text(`Oferta aktualna na: ${dateStr} - ${timeStr}`, {
         align: "center"
       });
-      
+
       // Linki do ofert
       if (data.trips.length > 0) {
         doc.moveDown(0.5);
@@ -844,7 +864,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           });
         }
       }
-      
+
       doc.moveDown(2);
 
       // Dane klienta
@@ -901,7 +921,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
         doc.text(
           `Cena: ${(tripData.priceCents / 100).toFixed(2)} zł × ${tripData.qty} = ${(itemTotal / 100).toFixed(2)} zł`
         );
-        
+
         // Dane uczestników
         if (tripData.passengers && tripData.passengers.length > 0) {
           doc.moveDown(0.5);
@@ -915,14 +935,15 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
               const birthDate = new Date(passenger.birthDate);
               doc.text(`   Data urodzenia: ${birthDate.toLocaleDateString("pl-PL")}`);
             }
-            const docTypeLabel = passenger.documentType === "ID_CARD" ? "Dowód osobisty" : "Paszport";
+            const docTypeLabel =
+              passenger.documentType === "ID_CARD" ? "Dowód osobisty" : "Paszport";
             doc.text(`   Dokument: ${docTypeLabel} - ${passenger.documentNumber}`);
             if (i < tripData.passengers.length - 1) {
               doc.moveDown(0.3);
             }
           }
         }
-        
+
         doc.moveDown();
       }
 
@@ -938,10 +959,12 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
 
       // Stopka
       doc.moveDown(3);
-      doc.fontSize(10).text(
-        "To jest podgląd oferty. Pełna umowa zostanie wygenerowana po złożeniu rezerwacji.",
-        { align: "center", color: "#666666" }
-      );
+      doc
+        .fontSize(10)
+        .text("To jest podgląd oferty. Pełna umowa zostanie wygenerowana po złożeniu rezerwacji.", {
+          align: "center",
+          color: "#666666"
+        });
 
       // Zakończ dokument
       doc.end();

@@ -6,14 +6,16 @@ Ten dokument opisuje szczegółowe kroki wdrożenia backendu na Render z bazą d
 
 ### 1. Czy wrzucać cały projekt czy tylko katalog `server/`?
 
-**Cały projekt!** 
+**Cały projekt!**
 
 Dlaczego:
+
 - `package.json` jest w **root** projektu (nie w `server/`)
 - Skrypty build (`npm run build:server`) są w root `package.json`
 - Render potrzebuje całego repozytorium, żeby móc zainstalować zależności i zbudować aplikację
 
 **Struktura na GitHub:**
+
 ```
 dream-travel-sports/
 ├── package.json          ← Render potrzebuje tego
@@ -29,16 +31,16 @@ dream-travel-sports/
 
 **Supabase jest świetnym wyborem!** Oto porównanie:
 
-| Opcja | Zalety | Wady |
-|-------|--------|------|
-| **Supabase** | ✅ Darmowy tier (500MB) <br> ✅ Łatwa konfiguracja <br> ✅ Wbudowany dashboard <br> ✅ Backup automatyczny <br> ✅ HTTPS/SSL out of the box <br> ✅ Connection pooling | ⚠️ Zewnętrzna usługa (ale to też zaleta) |
-| **Render PostgreSQL** | ✅ Wszystko w jednym miejscu <br> ✅ Automatyczne `DATABASE_URL` | ⚠️ Mniej funkcji <br> ⚠️ Może być droższe |
+| Opcja                 | Zalety                                                                                                                                                                 | Wady                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Supabase**          | ✅ Darmowy tier (500MB) <br> ✅ Łatwa konfiguracja <br> ✅ Wbudowany dashboard <br> ✅ Backup automatyczny <br> ✅ HTTPS/SSL out of the box <br> ✅ Connection pooling | ⚠️ Zewnętrzna usługa (ale to też zaleta)  |
+| **Render PostgreSQL** | ✅ Wszystko w jednym miejscu <br> ✅ Automatyczne `DATABASE_URL`                                                                                                       | ⚠️ Mniej funkcji <br> ⚠️ Może być droższe |
 
 **Rekomendacja:** Supabase - ma lepszy darmowy tier i więcej funkcji.
 
 ### 3. Czy trzeba zmieniać kod dla Supabase?
 
-**NIE!** Prisma używa standardowego PostgreSQL. 
+**NIE!** Prisma używa standardowego PostgreSQL.
 
 Supabase używa standardowego PostgreSQL z SSL - wystarczy zmienić tylko `DATABASE_URL`. Kod pozostaje bez zmian.
 
@@ -85,6 +87,7 @@ server/dist/
 4. (Opcjonalnie) Przetestuj lokalnie przed deploymentem
 
 **Zobacz SUPABASE_SETUP.md** dla:
+
 - Szczegółowych kroków utworzenia projektu
 - Wyjaśnienia różnych typów połączeń
 - Instrukcji testowania lokalnie
@@ -113,15 +116,15 @@ server/dist/
    - **Environment:** `Node`
    - **Region:** Wybierz najbliższą (np. `Frankfurt` dla Polski)
    - **Branch:** `main` (lub Twoja główna gałąź)
-   - **Root Directory:** *(zostaw puste - Render użyje root)*
+   - **Root Directory:** _(zostaw puste - Render użyje root)_
 
    **Build & Deploy:**
-   - **Build Command:** `npm install && npm run prisma:generate && npm run build:server`
+   - **Build Command:** `npm install --include=dev && npx prisma generate --schema=server/prisma/schema.prisma && npm run build:server`
    - **Start Command:** `npm run start:server`
 
-   **⚠️ WAŻNE - Build Command zawiera `prisma:generate`:**
-   - Render musi wygenerować Prisma Client podczas builda
-   - Używamy `prisma:generate` zamiast `prisma migrate deploy` w build command
+   **⚠️ WAŻNE - Build Command:**
+   - `--include=dev` - instaluje również devDependencies (potrzebne dla @types/express podczas kompilacji TypeScript)
+   - `npx prisma generate` - generuje Prisma Client (bezpośrednio, bez dotenv, bo zmienne są w środowisku Render)
    - Migracje uruchomimy ręcznie po pierwszym deploymencie
 
    **Plan:**
@@ -169,6 +172,7 @@ BANK_ACCOUNT=twoje_konto_bankowe
 ```
 
 **Jak dodać zmienne:**
+
 1. Kliknij **"Add Environment Variable"**
 2. Wpisz nazwę (np. `DATABASE_URL`)
 3. Wklej wartość
@@ -234,11 +238,13 @@ Potem wyślij zbudowany frontend na Cyberfolks (jak w `DEPLOY_FRONTEND.md`).
 Nie, nie musisz. Dla małych/średnich aplikacji lepszy jest direct connection:
 
 **Z pgbouncer:**
+
 ```
 postgresql://postgres:PASSWORD@db.xxxxx.supabase.co:5432/postgres?pgbouncer=true
 ```
 
 **Bez pgbouncer (zalecane):**
+
 ```
 postgresql://postgres:PASSWORD@db.xxxxx.supabase.co:5432/postgres?sslmode=require
 ```
@@ -268,6 +274,7 @@ Tak! Zamiast Supabase możesz:
 ### Render free tier - co muszę wiedzieć?
 
 **Ograniczenia free tier:**
+
 - Aplikacja "śpi" po 15 minutach bezczynności
 - Pierwsze żądanie po uśpieniu może trwać 30-60 sekund (cold start)
 - Ograniczenia CPU/RAM
@@ -288,8 +295,9 @@ Kod pozostaje bez zmian. Jedyne co się zmienia to:
 3. ✅ Kod pozostaje identyczny - Prisma działa z każdą bazą PostgreSQL
 
 Prisma jest ORM-agnostic - używa standardowego PostgreSQL, więc działa z:
+
 - Lokalnym PostgreSQL
-- Docker PostgreSQL  
+- Docker PostgreSQL
 - Supabase
 - Render PostgreSQL
 - Railway PostgreSQL
@@ -298,4 +306,3 @@ Prisma jest ORM-agnostic - używa standardowego PostgreSQL, więc działa z:
 - itd.
 
 Wszystko działa poprzez `DATABASE_URL` - to wszystko!
-

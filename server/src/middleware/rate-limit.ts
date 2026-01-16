@@ -30,7 +30,7 @@ export function createMagicLinkRateLimiter(env: Env) {
     keyGenerator: (req) => {
       // Użyj email z body jako klucza (jeśli dostępny)
       const email = (req.body as { customerEmail?: string })?.customerEmail;
-      return email || req.ip; // Fallback do IP jeśli email nie jest dostępny
+      return email || req.ip || "unknown"; // Fallback do IP lub "unknown" jeśli IP nie jest dostępny
     },
     message: {
       error: "Too many requests",
@@ -40,7 +40,9 @@ export function createMagicLinkRateLimiter(env: Env) {
     legacyHeaders: false,
     skip: (req) => {
       // W development, pomiń rate limiting jeśli nie ma email w body
-      return env.NODE_ENV === "development" && !(req.body as { customerEmail?: string })?.customerEmail;
+      return (
+        env.NODE_ENV === "development" && !(req.body as { customerEmail?: string })?.customerEmail
+      );
     }
   });
 }
@@ -67,7 +69,9 @@ export function createOrdersRateLimiter(env: Env) {
  */
 export function createP24WebhookWhitelist(env: Env) {
   const customIps = env.P24_WEBHOOK_IPS
-    ? env.P24_WEBHOOK_IPS.split(",").map((ip) => ip.trim()).filter(Boolean)
+    ? env.P24_WEBHOOK_IPS.split(",")
+        .map((ip) => ip.trim())
+        .filter(Boolean)
     : [];
 
   // Whitelist jest opcjonalny. Jeśli P24_WEBHOOK_IPS nie jest ustawione, nie blokujemy webhooków
@@ -100,7 +104,12 @@ export function createP24WebhookWhitelist(env: Env) {
         }
         // Dla uproszczenia, sprawdzamy tylko dokładne dopasowanie IP
         // W produkcji warto użyć biblioteki do obsługi CIDR
-        return clientIp.startsWith(ip.split(".").slice(0, Math.floor(maskBits / 8)).join("."));
+        return clientIp.startsWith(
+          ip
+            .split(".")
+            .slice(0, Math.floor(maskBits / 8))
+            .join(".")
+        );
       }
       return clientIp === allowedIp;
     });
@@ -116,4 +125,3 @@ export function createP24WebhookWhitelist(env: Env) {
     next();
   };
 }
-
