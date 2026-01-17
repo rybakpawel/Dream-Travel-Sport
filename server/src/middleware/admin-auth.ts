@@ -13,7 +13,13 @@ export function createAdminAuthMiddleware(env: Env) {
     // Pobierz token z cookie
     const token = req.cookies?.adminToken;
 
+    // Debug logowanie
     if (!token) {
+      console.log(
+        `[admin-auth] Missing cookie - path: ${req.path}, cookies:`,
+        req.cookies,
+        `cookie header: ${req.headers.cookie || "none"}`
+      );
       throw new UnauthorizedError("Missing admin token cookie");
     }
 
@@ -39,4 +45,3 @@ export function createAdminAuthMiddleware(env: Env) {
     }
   };
 }
-

@@ -338,20 +338,26 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         }
       }
 
-      // Logowanie dla debugowania (tylko w development)
-      if (env.NODE_ENV === "development") {
-        console.log(
-          `[admin] Login - origin: ${requestOrigin}, server: ${serverPublicUrl}, cross-origin: ${isCrossOrigin}`
-        );
-      }
+      const sameSite = isCrossOrigin ? "none" : "strict";
+      // SameSite: "none" WYMAGA Secure: true (wymóg przeglądarki)
+      // W produkcji zawsze używamy Secure (HTTPS)
+      const secure = sameSite === "none" || isProduction;
 
-      res.cookie("adminToken", jwtToken, {
+      const cookieOptions = {
         httpOnly: true,
-        secure: isCrossOrigin || isProduction, // Secure wymagane dla sameSite: "none" i w produkcji
-        sameSite: isCrossOrigin ? "none" : "strict", // "none" dla cross-origin, "strict" dla same-origin
+        secure: secure, // Secure wymagane dla sameSite: "none" i w produkcji
+        sameSite: sameSite as "none" | "strict" | "lax", // "none" dla cross-origin, "strict" dla same-origin
         path: "/", // Cookie dostępny dla wszystkich ścieżek
         maxAge: 24 * 60 * 60 * 1000 // 24 godziny
-      });
+      };
+
+      // Logowanie dla debugowania - zawsze loguj w produkcji dla tego problemu
+      console.log(
+        `[admin] Login - origin: ${requestOrigin || "none"}, server: ${serverPublicUrl}, cross-origin: ${isCrossOrigin}, NODE_ENV: ${env.NODE_ENV}, cookie options:`,
+        JSON.stringify(cookieOptions, null, 2)
+      );
+
+      res.cookie("adminToken", jwtToken, cookieOptions);
 
       res.json({
         success: true,
@@ -385,11 +391,13 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       }
     }
     const isProduction = env.NODE_ENV === "production";
+    const sameSite = isCrossOrigin ? "none" : "strict";
+    const secure = sameSite === "none" || isProduction;
 
     res.clearCookie("adminToken", {
       httpOnly: true,
-      secure: isCrossOrigin || isProduction,
-      sameSite: isCrossOrigin ? "none" : "strict",
+      secure: secure,
+      sameSite: sameSite as "none" | "strict" | "lax",
       path: "/" // Musi być taka sama jak przy ustawianiu
     });
     res.json({
