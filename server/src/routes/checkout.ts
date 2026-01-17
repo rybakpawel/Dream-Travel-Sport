@@ -849,7 +849,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       // Linki do ofert
       if (data.trips.length > 0) {
         doc.moveDown(0.5);
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const frontendUrl = env.CORS_ORIGIN.split(",")[0].trim().replace(/\/$/, "");
         const tripLinks: string[] = [];
         for (const tripData of data.trips) {
           const trip = tripMap.get(tripData.tripId);
