@@ -38,6 +38,10 @@ const EnvSchema = z.object({
   // Publiczny URL backendu (potrzebne m.in. do webhooków P24). W dev możesz użyć np. ngrok.
   SERVER_PUBLIC_URL: z.string().url().optional(),
 
+  // Supabase Storage (opcjonalne - jeśli nie ustawione, obrazy będą zapisywane lokalnie)
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+
   // Rezerwacja miejsc dla płatności P24 (minuty). Po tym czasie nieopłacone zamówienia są anulowane,
   // a miejsca wracają do puli. Domyślnie 120 minut (2h).
   P24_RESERVATION_TTL_MINUTES: z.coerce.number().int().positive().default(120),

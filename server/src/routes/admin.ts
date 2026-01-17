@@ -4,15 +4,7 @@ import multer from "multer";
 import jwt from "jsonwebtoken";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  closeSync,
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readSync,
-  unlinkSync
-} from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readSync, unlinkSync } from "node:fs";
 import crypto from "node:crypto";
 import {
   CheckoutSessionStatus,
@@ -31,6 +23,7 @@ import { createAdminAuthMiddleware } from "../middleware/admin-auth.js";
 import { prisma } from "../prisma.js";
 import type { EmailService } from "../services/email.js";
 import { calculateExpirationDate } from "../services/loyalty.js";
+import { createStorageService, type StorageService } from "../services/storage.js";
 
 /**
  * Generuje slug z nazwy wyjazdu
@@ -58,7 +51,8 @@ const tripsUploadDir =
   process.env.NODE_ENV === "production"
     ? "/tmp/dream-travel-sports-uploads"
     : join(__dirname, "../../../web/public/assets/trips");
-// Upewnij się, że katalog istnieje (w /tmp może już istnieć)
+
+// Upewnij się, że katalog istnieje
 try {
   if (!existsSync(tripsUploadDir)) {
     mkdirSync(tripsUploadDir, { recursive: true });
@@ -210,24 +204,20 @@ function resolveUploadFilePath(filename: string): string {
   return full;
 }
 
-// Funkcja pomocnicza do usuwania pliku obrazu
-function deleteImageFile(imagePath: string | null | undefined): void {
+// Funkcja pomocnicza do usuwania pliku obrazu z Supabase Storage
+// Uwaga: Ta funkcja wymaga storageService, więc musi być wywoływana wewnątrz createAdminRouter
+async function deleteImageFileFromStorage(
+  storageService: StorageService,
+  imagePath: string | null | undefined
+): Promise<void> {
   if (!imagePath) return;
 
   try {
-    // Wyciągnij nazwę pliku ze ścieżki (np. /assets/trips/filename.jpg -> filename.jpg)
-    const filename = imagePath.split("/").pop();
-    if (!filename) return;
-
-    if (!isSafeUploadFilename(filename)) return;
-    const filePath = resolveUploadFilePath(filename);
-    if (existsSync(filePath)) {
-      unlinkSync(filePath);
-      console.log(`[admin] Deleted image file: ${filePath}`);
-    }
+    await storageService.deleteImage(imagePath);
+    console.log(`[admin] Deleted image from storage: ${imagePath}`);
   } catch (err) {
     // Loguj błąd, ale nie przerywaj operacji
-    console.error(`[admin] Failed to delete image file ${imagePath}:`, err);
+    console.error(`[admin] Failed to delete image from storage ${imagePath}:`, err);
   }
 }
 
@@ -299,6 +289,7 @@ const upload = multer({
 
 export function createAdminRouter(env: Env, emailService: EmailService | null): express.Router {
   const router = express.Router();
+  const storageService = createStorageService(env);
 
   // POST /api/admin/login - endpoint logowania (przed middleware autoryzacji)
   router.post("/login", async (req, res) => {
@@ -430,12 +421,13 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
   // Wszystkie pozostałe endpointy wymagają autentykacji admina
   router.use(createAdminAuthMiddleware(env));
 
+  // Middleware do uploadu obrazu - używa multer do parsowania multipart/form-data
   function uploadSingleImage(
     req: express.Request,
     res: express.Response,
     next: express.NextFunction
   ) {
-    upload.single("image")(req, res, (err) => {
+    upload.single("image")(req, res, async (err) => {
       if (err) {
         return res.status(400).json({
           error: "ValidationError",
@@ -447,8 +439,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
     });
   }
 
-  // POST /api/admin/upload - upload obrazu
-  router.post("/upload", uploadSingleImage, (req, res, next) => {
+  // POST /api/admin/upload - upload obrazu do Supabase Storage
+  router.post("/upload", uploadSingleImage, async (req, res, next) => {
     try {
       if (!req.file) {
         return res.status(400).json({
@@ -459,12 +451,20 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       }
 
       const expectedKind = ALLOWED_IMAGE_MIME[req.file.mimetype];
-      const absPath = resolveUploadFilePath(req.file.filename);
-      const detectedKind = verifyUploadedImage(absPath);
-      if (!expectedKind || !detectedKind) {
+      if (!expectedKind) {
+        return res.status(400).json({
+          error: "ValidationError",
+          message: "Plik nie jest poprawnym obrazem (JPG/PNG/WEBP/GIF).",
+          code: "INVALID_IMAGE"
+        });
+      }
+
+      // Weryfikuj obraz z bufora
+      const detectedKind = verifyUploadedImage(req.file.path);
+      if (!detectedKind) {
         try {
-          if (existsSync(absPath)) {
-            unlinkSync(absPath);
+          if (existsSync(req.file.path)) {
+            unlinkSync(req.file.path);
           }
         } catch {}
         return res.status(400).json({
@@ -481,76 +481,56 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         );
       }
 
-      // Na produkcji, skopiuj plik do web/public/assets/trips żeby był dostępny przez /assets/
-      if (process.env.NODE_ENV === "production") {
-        const publicDir = join(__dirname, "../../../web/public/assets/trips");
-        const publicPath = join(publicDir, req.file.filename);
+      // Wczytaj plik do bufora i upload do Supabase
+      const fs = await import("node:fs");
+      const fileBuffer = fs.readFileSync(req.file.path);
 
-        try {
-          // Upewnij się, że katalog public/assets/trips istnieje
-          if (!existsSync(publicDir)) {
-            mkdirSync(publicDir, { recursive: true });
-          }
-
-          // Skopiuj plik z /tmp do public/assets/trips
-          const tempPath = resolveUploadFilePath(req.file.filename);
-          copyFileSync(tempPath, publicPath);
-          console.log(`[admin] Copied uploaded file to public directory: ${publicPath}`);
-        } catch (copyErr) {
-          console.error(`[admin] Failed to copy file to public directory:`, copyErr);
-          // Kontynuuj, nawet jeśli kopiowanie się nie powiedzie
+      // Usuń tymczasowy plik lokalny
+      try {
+        if (existsSync(req.file.path)) {
+          unlinkSync(req.file.path);
         }
-      }
+      } catch {}
 
-      // Zwróć ścieżkę względną do pliku (będzie dostępna przez /assets/trips/filename)
-      const filePath = `/assets/trips/${req.file.filename}`;
+      // Upload do Supabase Storage
+      const publicUrl = await storageService.uploadImage(
+        fileBuffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
 
       res.json({
         success: true,
-        path: filePath,
-        filename: req.file.filename
+        path: publicUrl,
+        filename: req.file.originalname
       });
     } catch (err) {
       next(err);
     }
   });
 
-  // DELETE /api/admin/upload/:filename - usuwanie obrazu
-  router.delete("/upload/:filename", (req, res, next) => {
+  // DELETE /api/admin/upload - usuwanie obrazu z Supabase Storage
+  router.delete("/upload", async (req, res, next) => {
     try {
-      const filename = req.params.filename;
-      if (!filename) {
-        return res.status(400).json({
-          error: "Bad Request",
-          message: "Brak nazwy pliku",
-          code: "MISSING_FILENAME"
-        });
-      }
+      const bodySchema = z.object({
+        imagePath: z.string().min(1)
+      });
+      const body = bodySchema.parse(req.body);
 
-      if (!isSafeUploadFilename(filename)) {
-        return res.status(400).json({
-          error: "ValidationError",
-          message: "Nieprawidłowa nazwa pliku",
-          code: "INVALID_FILENAME"
-        });
-      }
+      // Usuń z Supabase Storage
+      await storageService.deleteImage(body.imagePath);
 
-      // Usuń plik
-      const filePath = resolveUploadFilePath(filename);
-      if (existsSync(filePath)) {
-        unlinkSync(filePath);
-        res.json({
-          success: true,
-          message: "Plik został usunięty"
-        });
-      } else {
-        res.status(404).json({
-          error: "Not Found",
-          message: "Plik nie został znaleziony",
-          code: "FILE_NOT_FOUND"
-        });
-      }
+      res.json({
+        success: true,
+        message: "Plik został usunięty"
+      });
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          error: "Validation error",
+          details: err.errors
+        });
+      }
       next(err);
     }
   });
@@ -1591,14 +1571,14 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       if (updateData.heroImagePath !== undefined) {
         // Jeśli nowa ścieżka jest różna od starej (lub null), usuń stary plik
         if (updateData.heroImagePath !== existingTrip.heroImagePath && existingTrip.heroImagePath) {
-          deleteImageFile(existingTrip.heroImagePath);
+          await deleteImageFileFromStorage(storageService, existingTrip.heroImagePath);
         }
       }
 
       if (updateData.cardImagePath !== undefined) {
         // Jeśli nowa ścieżka jest różna od starej (lub null), usuń stary plik
         if (updateData.cardImagePath !== existingTrip.cardImagePath && existingTrip.cardImagePath) {
-          deleteImageFile(existingTrip.cardImagePath);
+          await deleteImageFileFromStorage(storageService, existingTrip.cardImagePath);
         }
       }
 
@@ -2187,28 +2167,23 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         );
       }
 
-      // Na produkcji, skopiuj plik do web/public/assets/trips żeby był dostępny przez /assets/
-      if (process.env.NODE_ENV === "production") {
-        const publicDir = join(__dirname, "../../../web/public/assets/trips");
-        const publicPath = join(publicDir, req.file.filename);
+      // Wczytaj plik do bufora i upload do Supabase
+      const fs = await import("node:fs");
+      const fileBuffer = fs.readFileSync(absPath);
 
-        try {
-          // Upewnij się, że katalog public/assets/trips istnieje
-          if (!existsSync(publicDir)) {
-            mkdirSync(publicDir, { recursive: true });
-          }
-
-          // Skopiuj plik z /tmp do public/assets/trips
-          const tempPath = resolve(tripsUploadDir, req.file.filename);
-          copyFileSync(tempPath, publicPath);
-          console.log(`[admin] Copied gallery file to public directory: ${publicPath}`);
-        } catch (copyErr) {
-          console.error(`[admin] Failed to copy gallery file to public directory:`, copyErr);
-          // Kontynuuj, nawet jeśli kopiowanie się nie powiedzie
+      // Usuń tymczasowy plik lokalny
+      try {
+        if (existsSync(absPath)) {
+          unlinkSync(absPath);
         }
-      }
+      } catch {}
 
-      const imagePath = `/assets/trips/${req.file.filename}`;
+      // Upload do Supabase Storage
+      const publicUrl = await storageService.uploadImage(
+        fileBuffer,
+        req.file.originalname,
+        req.file.mimetype
+      );
 
       // Pobierz aktualną zawartość COOP_GALLERY
       const galleryContent = await prisma.content.findUnique({
@@ -2218,8 +2193,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       const currentData = (galleryContent?.data as any) || {};
       const currentImages = Array.isArray(currentData.images) ? currentData.images : [];
 
-      // Dodaj nowe zdjęcie
-      const updatedImages = [...currentImages, imagePath];
+      // Dodaj nowe zdjęcie (używamy pełnego URL z Supabase)
+      const updatedImages = [...currentImages, publicUrl];
 
       // Zaktualizuj content
       await prisma.content.upsert({
@@ -2243,8 +2218,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
 
       res.json({
         success: true,
-        path: imagePath,
-        filename: req.file.filename
+        path: publicUrl,
+        filename: req.file.originalname
       });
     } catch (err) {
       next(err);
@@ -2274,19 +2249,13 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       // Usuń zdjęcie z listy
       const updatedImages = currentImages.filter((img: string) => img !== body.imagePath);
 
-      // Usuń plik z dysku
-      const filename = body.imagePath.split("/").pop();
-      if (filename && isSafeUploadFilename(filename)) {
-        try {
-          const filePath = resolveUploadFilePath(filename);
-          if (existsSync(filePath)) {
-            unlinkSync(filePath);
-            console.log(`[admin] Deleted gallery image: ${filePath}`);
-          }
-        } catch (fileErr) {
-          console.error(`[admin] Failed to delete gallery image file:`, fileErr);
-          // Kontynuuj nawet jeśli usunięcie pliku się nie powiodło
-        }
+      // Usuń plik z Supabase Storage
+      try {
+        await storageService.deleteImage(body.imagePath);
+        console.log(`[admin] Deleted gallery image from Supabase: ${body.imagePath}`);
+      } catch (fileErr) {
+        console.error(`[admin] Failed to delete gallery image from Supabase:`, fileErr);
+        // Kontynuuj nawet jeśli usunięcie pliku się nie powiodło
       }
 
       // Zaktualizuj content

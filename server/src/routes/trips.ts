@@ -1,8 +1,10 @@
 import { Router } from "express";
 
+import type { Env } from "../env.js";
 import { prisma } from "../prisma.js";
 
-export const tripsRouter = Router();
+export function createTripsRouter(env: Env) {
+  const tripsRouter = Router();
 
 type DeparturePointDto = {
   id: string;
@@ -12,45 +14,61 @@ type DeparturePointDto = {
   sortOrder: number;
 };
 
-function toTripDto(
-  trip: {
-    id: string;
-    slug: string;
-    name: string;
-    details: string;
-    extendedDescription: string;
-    tag: string;
-    meta: string;
-    startsAt: Date | null;
-    endsAt: Date | null;
-    currency: string;
-    priceCents: number | null;
-    capacity: number | null;
-    seatsLeft: number | null;
-    availability: string;
-    spotsLabel: string | null;
-    useAutoSpotsLabel: boolean;
-    hotelClass: number | null;
-    isFeatured: boolean;
-    heroImagePath: string | null;
-    cardImagePath: string | null;
-  },
-  departurePoints?: DeparturePointDto[]
-) {
-  // Oblicz najtańszą cenę z miejsc wylotu (lub użyj starego priceCents jako fallback)
-  let minPriceCents: number | null = null;
-  if (departurePoints && departurePoints.length > 0) {
-    minPriceCents = Math.min(...departurePoints.map((dp) => dp.priceCents));
-  } else if (trip.priceCents !== null && trip.priceCents !== undefined) {
-    minPriceCents = trip.priceCents;
+  // Funkcja pomocnicza do konwersji względnych ścieżek obrazków na pełne URL-e
+  function toFullImageUrl(imagePath: string | null): string | null {
+    if (!imagePath) return null;
+    
+    // Jeśli już jest pełny URL, zwróć bez zmian
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+    
+    // Konwertuj względną ścieżkę na pełny URL
+    const serverPublicUrl = (env.SERVER_PUBLIC_URL || `http://localhost:${env.PORT}`).replace(/\/$/, "");
+    return `${serverPublicUrl}${imagePath.startsWith("/") ? "" : "/"}${imagePath}`;
   }
 
-  return {
-    ...trip,
-    priceCents: minPriceCents,
-    departurePoints: departurePoints || []
-  };
-}
+  function toTripDto(
+    trip: {
+      id: string;
+      slug: string;
+      name: string;
+      details: string;
+      extendedDescription: string;
+      tag: string;
+      meta: string;
+      startsAt: Date | null;
+      endsAt: Date | null;
+      currency: string;
+      priceCents: number | null;
+      capacity: number | null;
+      seatsLeft: number | null;
+      availability: string;
+      spotsLabel: string | null;
+      useAutoSpotsLabel: boolean;
+      hotelClass: number | null;
+      isFeatured: boolean;
+      heroImagePath: string | null;
+      cardImagePath: string | null;
+    },
+    departurePoints?: DeparturePointDto[]
+  ) {
+    // Oblicz najtańszą cenę z miejsc wylotu (lub użyj starego priceCents jako fallback)
+    let minPriceCents: number | null = null;
+    if (departurePoints && departurePoints.length > 0) {
+      minPriceCents = Math.min(...departurePoints.map((dp) => dp.priceCents));
+    } else if (trip.priceCents !== null && trip.priceCents !== undefined) {
+      minPriceCents = trip.priceCents;
+    }
+
+    return {
+      ...trip,
+      priceCents: minPriceCents,
+      heroImagePath: toFullImageUrl(trip.heroImagePath),
+      cardImagePath: toFullImageUrl(trip.cardImagePath),
+      departurePoints: departurePoints || []
+    };
+  }
 
 tripsRouter.get("/", async (req, res, next) => {
   try {
@@ -268,3 +286,6 @@ tripsRouter.get("/:slug", async (req, res, next) => {
     next(err);
   }
 });
+
+  return tripsRouter;
+}

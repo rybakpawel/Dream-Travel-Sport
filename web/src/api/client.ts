@@ -484,16 +484,14 @@ export const adminApi = {
   },
 
   deleteImage: async (imagePath: string): Promise<void> => {
-    // Wyciągnij nazwę pliku ze ścieżki (np. /assets/trips/filename.jpg -> filename.jpg)
-    const filename = imagePath.split("/").pop();
-    if (!filename) {
-      throw new Error("Nieprawidłowa ścieżka do obrazu");
-    }
-
-    const url = `${API_BASE_URL}/admin/upload/${filename}`;
+    const url = `${API_BASE_URL}/admin/upload`;
     const response = await fetch(url, {
       method: "DELETE",
-      credentials: "include"
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ imagePath })
     });
 
     if (!response.ok) {

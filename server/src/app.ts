@@ -2,6 +2,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
 import { dirname, join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import type { Env } from "./env.js";
@@ -15,7 +16,7 @@ import { createPaymentsRouter } from "./routes/payments.js";
 import { createContactRouter } from "./routes/contact.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { createEmailService } from "./services/email.js";
-import { tripsRouter } from "./routes/trips.js";
+import { createTripsRouter } from "./routes/trips.js";
 import { contentRouter } from "./routes/content.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,7 +58,7 @@ export function createApp(env: Env) {
   // Admin dashboard (wymaga autentykacji)
   app.use("/api/admin", createAdminRouter(env, emailService));
 
-  app.use("/api/trips", tripsRouter);
+  app.use("/api/trips", createTripsRouter(env));
   app.use("/api/content", contentRouter);
   app.use("/api/newsletter", createNewsletterRouter(env, emailService));
   app.use("/api/cart", createCartRouter(env));

@@ -753,10 +753,7 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
           // Sprawdź czy istnieje font w katalogu assets/fonts
           const __filename = fileURLToPath(import.meta.url);
           const __dirname = dirname(__filename);
-            // Na produkcji fonty mogą być niedostępne, użyj embedded fontów
-            const fontDir = process.env.NODE_ENV === "production"
-              ? null // Brak fontów na produkcji, użyj Helvetica
-              : path.join(__dirname, "../../../web/public/assets/fonts");
+          const fontDir = path.join(__dirname, "../../../web/public/assets/fonts");
 
           // Szukaj fontu Arial lub podobnego obsługującego polskie znaki
           const possibleFonts = [
@@ -767,17 +764,12 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
             "LiberationSans-Regular.ttf"
           ];
 
-          // Jeśli fontDir jest dostępne (nie produkcja), spróbuj załadować font
-          if (fontDir) {
-            for (const fontFile of possibleFonts) {
-              const fontFullPath = path.join(fontDir, fontFile);
-              if (fs.existsSync(fontFullPath)) {
-                fontPath = fontFullPath;
-                break;
-              }
+          for (const fontFile of possibleFonts) {
+            const fontFullPath = path.join(fontDir, fontFile);
+            if (fs.existsSync(fontFullPath)) {
+              fontPath = fontFullPath;
+              break;
             }
-          } else {
-            console.log(`[checkout] Production environment, using built-in Helvetica font`);
           }
         } catch (fontErr) {
           // Jeśli nie można załadować zewnętrznego fontu, użyjemy wbudowanego
