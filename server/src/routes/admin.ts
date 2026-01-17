@@ -44,9 +44,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Konfiguracja multer do uploadu obrazów
-const tripsUploadDir = join(__dirname, "../../../web/public/assets/trips");
-if (!existsSync(tripsUploadDir)) {
-  mkdirSync(tripsUploadDir, { recursive: true });
+// Na produkcji użyj /tmp (Render ma persistent storage w /tmp)
+// W dev użyj lokalnego katalogu
+const tripsUploadDir =
+  process.env.NODE_ENV === "production"
+    ? "/tmp/dream-travel-sports-uploads"
+    : join(__dirname, "../../../web/public/assets/trips");
+// Upewnij się, że katalog istnieje (w /tmp może już istnieć)
+try {
+  if (!existsSync(tripsUploadDir)) {
+    mkdirSync(tripsUploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.error(`[admin] Failed to create upload directory: ${tripsUploadDir}`, err);
 }
 
 const ALLOWED_IMAGE_MIME: Record<string, "jpeg" | "png" | "webp" | "gif"> = {
@@ -461,6 +471,28 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         console.warn(
           `[admin] Image type mismatch: expected=${expectedKind} (from MIME type), detected=${detectedKind} (from file header). File will be accepted.`
         );
+      }
+
+      // Na produkcji, skopiuj plik do web/public/assets/trips żeby był dostępny przez /assets/
+      if (process.env.NODE_ENV === "production") {
+        const publicDir = join(__dirname, "../../../web/public/assets/trips");
+        const publicPath = join(publicDir, req.file.filename);
+
+        try {
+          // Upewnij się, że katalog public/assets/trips istnieje
+          if (!existsSync(publicDir)) {
+            mkdirSync(publicDir, { recursive: true });
+          }
+
+          // Skopiuj plik z /tmp do public/assets/trips
+          const tempPath = resolveUploadFilePath(req.file.filename);
+          const fs = await import("node:fs");
+          fs.copyFileSync(tempPath, publicPath);
+          console.log(`[admin] Copied uploaded file to public directory: ${publicPath}`);
+        } catch (copyErr) {
+          console.error(`[admin] Failed to copy file to public directory:`, copyErr);
+          // Kontynuuj, nawet jeśli kopiowanie się nie powiedzie
+        }
       }
 
       // Zwróć ścieżkę względną do pliku (będzie dostępna przez /assets/trips/filename)
