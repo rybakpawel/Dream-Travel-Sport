@@ -348,8 +348,10 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
         secure: secure, // Secure wymagane dla sameSite: "none" i w produkcji
         sameSite: sameSite as "none" | "strict" | "lax", // "none" dla cross-origin, "strict" dla same-origin
         path: "/", // Cookie dostępny dla wszystkich ścieżek
-        maxAge: 24 * 60 * 60 * 1000 // 24 godziny
-      };
+        maxAge: 24 * 60 * 60 * 1000, // 24 godziny
+        // Dodaj Partitioned dla Chrome (wymagane dla SameSite=None w cross-origin)
+        ...(sameSite === "none" && { partitioned: true })
+      } as any; // TypeScript nie zna jeszcze partitioned
 
       // Logowanie dla debugowania - zawsze loguj w produkcji dla tego problemu
       console.log(
@@ -398,8 +400,9 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
       httpOnly: true,
       secure: secure,
       sameSite: sameSite as "none" | "strict" | "lax",
-      path: "/" // Musi być taka sama jak przy ustawianiu
-    });
+      path: "/", // Musi być taka sama jak przy ustawianiu
+      ...(sameSite === "none" && { partitioned: true })
+    } as any);
     res.json({
       success: true,
       message: "Wylogowano pomyślnie"
