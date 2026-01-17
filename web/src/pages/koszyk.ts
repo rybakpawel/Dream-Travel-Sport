@@ -1,5 +1,6 @@
 import { tripsApi } from "../api/client.js";
 import { checkoutApi, ordersApi, paymentsApi } from "../api/client.js";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 import { addTrip, setItemQty, removeItem } from "../features/cart/operations.js";
 import { initCartPage as initCartPageLegacy } from "../features/cart/page.js";
 import { renderCart } from "../features/cart/render.js";
@@ -900,8 +901,7 @@ async function initCartPage() {
           }
 
           // Wywołaj endpoint do generowania PDF
-          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-          const response = await fetch(`${apiUrl}/api/checkout/preview-agreement`, {
+          const response = await fetch(`${API_BASE_URL}/checkout/preview-agreement`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
