@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 import type { Env } from "../env.js";
 
 const BUCKET_NAME = "trip-images";
@@ -39,12 +40,10 @@ class SupabaseStorageService implements StorageService {
     const filePath = `trips/${uniqueFilename}`;
 
     // Upload do Supabase Storage
-    const { data, error } = await this.client.storage
-      .from(this.bucketName)
-      .upload(filePath, file, {
-        contentType,
-        upsert: false
-      });
+    const { data, error } = await this.client.storage.from(this.bucketName).upload(filePath, file, {
+      contentType,
+      upsert: false
+    });
 
     if (error) {
       throw new Error(`Failed to upload image to Supabase: ${error.message}`);
@@ -57,7 +56,7 @@ class SupabaseStorageService implements StorageService {
   async deleteImage(path: string): Promise<void> {
     // Wyciągnij ścieżkę z URL-a (np. "https://...supabase.co/storage/v1/object/public/trip-images/trips/file.jpg" -> "trips/file.jpg")
     let filePath = path;
-    
+
     // Jeśli to pełny URL, wyciągnij ścieżkę
     if (path.includes("/storage/v1/object/public/")) {
       const parts = path.split("/storage/v1/object/public/");
@@ -87,7 +86,7 @@ class SupabaseStorageService implements StorageService {
   getPublicUrl(path: string): string {
     // Wyciągnij ścieżkę z URL-a jeśli to pełny URL
     let filePath = path;
-    
+
     if (path.includes("/storage/v1/object/public/")) {
       const parts = path.split("/storage/v1/object/public/");
       if (parts.length > 1) {
@@ -134,4 +133,3 @@ export function createStorageService(env: Env): StorageService {
   }
   return new LocalStorageService(env);
 }
-
