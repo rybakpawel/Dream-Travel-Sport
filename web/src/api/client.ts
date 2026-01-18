@@ -10,7 +10,7 @@ type ApiResponse<T> = {
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   // Merge cache option if provided
   const fetchOptions: RequestInit = {
     ...options,
@@ -20,7 +20,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       ...options.headers
     }
   };
-  
+
   // Add cache control for GET requests if not explicitly set
   if (options.method === undefined || options.method === "GET") {
     if (!options.cache) {
@@ -29,7 +29,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       fetchOptions.cache = options.cache;
     }
   }
-  
+
   const response = await fetch(url, fetchOptions);
 
   // Obsługa 204 No Content (brak body)
@@ -94,6 +94,8 @@ export const tripsApi = {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
+    // Add cache-busting timestamp to prevent stale data
+    params.append("_t", String(Date.now()));
     const query = params.toString();
     return apiRequest<{
       data: Array<unknown>;
@@ -105,8 +107,8 @@ export const tripsApi = {
       };
     }>(`/trips${query ? `?${query}` : ""}`);
   },
-  getFeatured: () => apiRequest<Array<unknown>>("/trips/featured"),
-  getBySlug: (slug: string) => apiRequest<unknown>(`/trips/${slug}`)
+  getFeatured: () => apiRequest<Array<unknown>>(`/trips/featured?_t=${Date.now()}`),
+  getBySlug: (slug: string) => apiRequest<unknown>(`/trips/${slug}?_t=${Date.now()}`)
 };
 
 // Newsletter API
@@ -127,11 +129,13 @@ export const contentApi = {
     params.append("_t", String(Date.now()));
     const query = params.toString();
     // apiRequest returns data.data ?? data, so for { data: [...] } it returns the array
-    return apiRequest<Array<{
-      section: string;
-      page: string;
-      data: any;
-    }>>(`/content?${query}`, {
+    return apiRequest<
+      Array<{
+        section: string;
+        page: string;
+        data: any;
+      }>
+    >(`/content?${query}`, {
       cache: "no-store"
     });
   },
@@ -155,7 +159,10 @@ export const cartApi = {
       cart: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>;
     }>(`/cart/${sessionId}`),
 
-  updateCart: (sessionId: string, cart: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>) =>
+  updateCart: (
+    sessionId: string,
+    cart: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>
+  ) =>
     apiRequest<{
       success: boolean;
       cart: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>;
@@ -168,7 +175,10 @@ export const cartApi = {
 
 // Checkout API
 export const checkoutApi = {
-  createSession: (data: { customerEmail: string; cartData: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }> }) =>
+  createSession: (data: {
+    customerEmail: string;
+    cartData: Array<{ id: string; qty: number; departurePointId?: string; priceCents?: number }>;
+  }) =>
     apiRequest<{
       success: boolean;
       session: {
@@ -291,7 +301,13 @@ export const ordersApi = {
 
 // Contact API
 export const contactApi = {
-  submit: (data: { name: string; email: string; company?: string; phone?: string; message: string }) =>
+  submit: (data: {
+    name: string;
+    email: string;
+    company?: string;
+    phone?: string;
+    message: string;
+  }) =>
     apiRequest<{
       success: boolean;
       message: string;
@@ -305,7 +321,8 @@ export const contactApi = {
 export const paymentsApi = {
   create: (
     orderId: string,
-    provider: "PRZELEWY24" | "MANUAL_TRANSFER" = "PRZELEWY24",
+    // P24 tymczasowo wyłączone - czekamy na weryfikację konta
+    provider: "PRZELEWY24" | "MANUAL_TRANSFER" = "MANUAL_TRANSFER", // było "PRZELEWY24"
     options?: { forceNew?: boolean }
   ) =>
     apiRequest<{
@@ -342,12 +359,7 @@ export const adminApi = {
       credentials: "include" // Wysyła cookies automatycznie
     }),
 
-  getOrders: (
-    page?: number,
-    limit?: number,
-    status?: string,
-    overdueManualTransfers?: boolean
-  ) => {
+  getOrders: (page?: number, limit?: number, status?: string, overdueManualTransfers?: boolean) => {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     if (limit) params.append("limit", String(limit));
@@ -425,7 +437,13 @@ export const adminApi = {
   // Departure Points (Miejsca wylotu)
   createDeparturePoint: (
     tripId: string,
-    data: { city: string; priceCents: number; currency?: string; isActive?: boolean; sortOrder?: number }
+    data: {
+      city: string;
+      priceCents: number;
+      currency?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    }
   ) =>
     apiRequest<unknown>(`/admin/trips/${tripId}/departure-points`, {
       method: "POST",
@@ -436,7 +454,13 @@ export const adminApi = {
   updateDeparturePoint: (
     tripId: string,
     departurePointId: string,
-    data: { city?: string; priceCents?: number; currency?: string; isActive?: boolean; sortOrder?: number }
+    data: {
+      city?: string;
+      priceCents?: number;
+      currency?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    }
   ) =>
     apiRequest<unknown>(`/admin/trips/${tripId}/departure-points/${departurePointId}`, {
       method: "PUT",

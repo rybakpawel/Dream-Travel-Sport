@@ -18,7 +18,9 @@ const EnvSchema = z.object({
   P24_API_URL: z.string().url().default("https://sandbox.przelewy24.pl"),
   // Resend (opcjonalne - jeśli nie ustawione, emaile nie będą wysyłane)
   RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().email().default("noreply@dreamtravelsport.pl"),
+  RESEND_FROM_EMAIL: z.string().email().default("noreply@dreamtravelsport.pl"), // Backward compatibility
+  RESEND_FROM_EMAIL_SYSTEM: z.string().email().optional(), // Dla maili automatycznych (noreply@)
+  RESEND_FROM_EMAIL_CONTACT: z.string().email().optional(), // Dla maili kontaktowych (kontakt@)
   RESEND_FROM_NAME: z.string().default("Dream Travel Sport"),
   // Resend: Audience ID dla newslettera (opcjonalne, ale wymagane jeśli chcesz wysyłać newsletter przez Resend Broadcasts)
   // Ustaw w panelu Resend -> Audiences -> (wybrana lista) -> ID

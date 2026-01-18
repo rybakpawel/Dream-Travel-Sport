@@ -36,6 +36,14 @@ export function createApp(env: Env) {
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
 
+  // Middleware do wyłączania cache dla API endpointów (zapobiega cache'owaniu starych danych)
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    next();
+  });
+
   // Serwuj statyczne pliki z web/public (obrazy, itp.)
   const publicDir = join(__dirname, "../../web/public");
   app.use("/assets", express.static(publicDir));

@@ -58,6 +58,10 @@ function createEmailServiceInternal(env: Env): EmailService | null {
 
   const resend = new Resend(env.RESEND_API_KEY);
 
+  // Użyj nowych zmiennych lub fallback do starej (backward compatibility)
+  const systemFromEmail = env.RESEND_FROM_EMAIL_SYSTEM || env.RESEND_FROM_EMAIL;
+  const contactFromEmail = env.RESEND_FROM_EMAIL_CONTACT || env.RESEND_FROM_EMAIL;
+
   return {
     async sendMagicLink({ to, customerName, magicLink, pointsAvailable, expiresInMinutes }) {
       const greeting = customerName ? `Cześć ${customerName},` : "Cześć,";
@@ -150,7 +154,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: `Twoje Dream Points czekają na wykorzystanie 🎁`,
           html,
@@ -276,7 +280,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: "Rezerwacja przyjęta – ostatni krok do wyjazdu ⚽",
           html,
@@ -383,7 +387,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: `Dane do przelewu - Zamówienie ${orderNumber} 💳`,
           html,
@@ -513,7 +517,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: `Masz to. Wyjazd jest zaklepany 🔒⚽`,
           html,
@@ -617,7 +621,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: "Witaj w Dream Travel Sport – zaczynamy 🚀",
           html,
@@ -686,7 +690,7 @@ Odpowiedz na tego maila, aby skontaktować się z ${fromName}.
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${contactFromEmail}>`,
           to: [to],
           replyTo: fromEmail,
           subject: `Nowa wiadomość z formularza współpracy od ${fromName}`,
@@ -761,7 +765,7 @@ Dream Travel Sport | sportowe wyjazdy premium
 
       try {
         await resend.emails.send({
-          from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
+          from: `${env.RESEND_FROM_NAME} <${systemFromEmail}>`,
           to: [to],
           subject: "Dziękujemy za wiadomość – Dream Travel Sport",
           html,
