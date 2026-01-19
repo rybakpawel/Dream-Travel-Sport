@@ -17,10 +17,18 @@ export function createNewsletterRouter(
   // Rate limiting dla newslettera
   router.use(createNewsletterRateLimiter(env));
 
-  const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+  // Synchronizacja z Resend jest wyłączona gdy:
+  // 1. EMAIL_PROVIDER=smtp (używamy SMTP zamiast Resend)
+  // 2. RESEND_NEWSLETTER_SYNC_ENABLED=false (jawnie wyłączone)
+  const isResendProvider = env.EMAIL_PROVIDER !== "smtp";
+  const resendSyncEnabled = env.RESEND_NEWSLETTER_SYNC_ENABLED ?? true; // domyślnie włączone dla backward compatibility
+  const shouldSyncToResend =
+    isResendProvider && resendSyncEnabled && Boolean(env.RESEND_API_KEY);
+
+  const resend = shouldSyncToResend && env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
   const configuredAudienceId = env.RESEND_NEWSLETTER_AUDIENCE_ID;
   const configuredAudienceName = env.RESEND_NEWSLETTER_AUDIENCE_NAME?.trim() || undefined;
-  const shouldSyncToResend = Boolean(configuredAudienceId || configuredAudienceName);
+  const hasResendConfig = Boolean(configuredAudienceId || configuredAudienceName);
 
   let resolvedAudienceId: string | null = null;
 
@@ -161,7 +169,8 @@ export function createNewsletterRouter(
       });
 
       // Jeśli skonfigurowano sync newslettera do Resend (ID lub NAME), to zapis ma też trafić do Resend (pod Broadcast)
-      if (shouldSyncToResend) {
+      // Synchronizacja jest automatycznie wyłączona gdy EMAIL_PROVIDER=smtp
+      if (shouldSyncToResend && hasResendConfig) {
         if (!env.RESEND_API_KEY) {
           console.error("[newsletter] Resend sync is enabled, but RESEND_API_KEY is missing");
           return res.status(500).json({

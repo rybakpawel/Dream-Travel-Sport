@@ -55,7 +55,7 @@ async function checkDatabase(): Promise<HealthCheckResult> {
 }
 
 /**
- * Sprawdza dostępność serwisu email (Resend)
+ * Sprawdza dostępność serwisu email (Resend lub SMTP w zależności od EMAIL_PROVIDER)
  */
 async function checkEmail(emailService: EmailService | null): Promise<HealthCheckResult> {
   if (!emailService) {

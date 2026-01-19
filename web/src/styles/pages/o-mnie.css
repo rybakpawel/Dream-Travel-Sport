@@ -17,45 +17,151 @@ section {
   margin-top: 48px;
 }
 
-h1 {
+.about-content-inner h1 {
   font-size: 32px;
-  margin-bottom: 32px;
+  margin: 0;
   line-height: 1.3;
 }
 
-.about-images {
-  margin-top: 0;
-  margin-bottom: 32px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  max-width: 780px;
+.about-text h1 strong {
+  font-weight: 700;
 }
 
-.about-images img {
+.about-content-inner h2.about-subtitle {
+  font-size: 32px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.about-content-inner h2.about-subtitle strong {
+  font-weight: 700;
+}
+
+.about-section {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 150px;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.about-section-1 {
+  margin-top: 0;
+  margin-bottom: 60px;
+  grid-template-columns: 2fr 1fr; /* Tekst 2/3, zdjęcie 1/3 */
+}
+
+.about-section-2 {
+  margin-top: 0;
+  margin-bottom: 40px;
+  grid-template-columns: 1fr 2fr; /* Zdjęcie 1/3, tekst 2/3 */
+}
+
+.about-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  gap: 0;
+}
+
+.about-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 1px solid var(--dt-gold);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dt-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  align-self: flex-start;
+  margin-bottom: auto;
+}
+
+.about-content-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+.about-content-inner p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--dt-light);
+  margin: 0;
+}
+
+.about-content-inner p strong {
+  color: var(--dt-gold);
+  font-weight: 600;
+}
+
+.about-image {
+  width: 100%;
+}
+
+.about-image img {
   width: 100%;
   height: auto;
   border-radius: 18px;
-  object-fit: cover;
-  aspect-ratio: 4 / 3;
+  object-fit: contain;
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 
-.about-content {
-  max-width: 780px;
+.about-hero-section {
+  position: relative;
+  margin: 60px 0;
+  border-radius: 24px;
+  overflow: hidden;
+  min-height: 500px;
+  background-image: url('/assets/images/o-mnie-stadion.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 34px 80px rgba(0, 0, 0, 0.75);
 }
 
-.about-content p {
-  font-size: 16px;
+.about-hero-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+  z-index: 1;
+}
+
+.about-hero-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 40px;
+  min-height: 500px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.about-hero-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--dt-light);
+  margin-bottom: 24px;
+  line-height: 1.3;
+}
+
+.about-hero-text {
+  font-size: 18px;
   line-height: 1.7;
   color: var(--dt-light);
-  margin-bottom: 20px;
-}
-
-.about-content p strong {
-  color: var(--dt-gold);
-  font-weight: 600;
+  margin: 0;
 }
 
 .about-stats {
@@ -66,7 +172,7 @@ h1 {
 }
 
 .about-cta {
-  margin-top: 40px;
+  margin-top: auto;
 }
 
 .stat-item {
@@ -97,13 +203,71 @@ h1 {
     padding: 0 24px;
   }
 
-  h1 {
+  .about-content-inner h1 {
     font-size: 28px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
 
-  .about-content p {
+  .about-content-inner h2.about-subtitle {
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .about-content-inner {
+    margin: 20px 0;
+  }
+
+  .about-tag {
+    margin-bottom: 0;
+  }
+
+  .about-text {
+    height: auto;
+  }
+
+  .about-section {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  /* W mobile: zdjęcia zawsze między tytułem a tekstem */
+  .about-section-1 .about-text {
+    order: 2;
+  }
+
+  .about-section-1 .about-image {
+    order: 1;
+  }
+
+  .about-section-2 .about-image {
+    order: 1;
+  }
+
+  .about-section-2 .about-text {
+    order: 2;
+  }
+
+  .about-text p {
     font-size: 15px;
+  }
+
+  .about-hero-section {
+    margin: 48px 0;
+    min-height: 400px;
+  }
+
+  .about-hero-content {
+    padding: 60px 24px;
+    min-height: 400px;
+  }
+
+  .about-hero-title {
+    font-size: 28px;
+    margin-bottom: 20px;
+  }
+
+  .about-hero-text {
+    font-size: 16px;
   }
 
   .stat-number {

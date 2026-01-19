@@ -16,7 +16,9 @@ const EnvSchema = z.object({
   P24_API_KEY: z.string().optional(),
   P24_CRC_KEY: z.string().optional(),
   P24_API_URL: z.string().url().default("https://sandbox.przelewy24.pl"),
-  // Resend (opcjonalne - jeśli nie ustawione, emaile nie będą wysyłane)
+  // Email Provider: "resend" lub "smtp" (domyślnie "resend" dla backward compatibility)
+  EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("resend"),
+  // Resend (opcjonalne - jeśli nie ustawione, emaile nie będą wysyłane gdy EMAIL_PROVIDER=resend)
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().default("noreply@dreamtravelsport.pl"), // Backward compatibility
   RESEND_FROM_EMAIL_SYSTEM: z.string().email().optional(), // Dla maili automatycznych (noreply@)
@@ -28,6 +30,24 @@ const EnvSchema = z.object({
   // Resend: Nazwa Audience (lista) dla newslettera. Jeśli ustawione, a ID nie jest podane,
   // backend spróbuje znaleźć lub utworzyć Audience o tej nazwie i użyje go do zapisu kontaktów.
   RESEND_NEWSLETTER_AUDIENCE_NAME: z.string().optional(),
+  // Resend: Flaga włączająca synchronizację newslettera z Resend Audiences (tylko gdy EMAIL_PROVIDER=resend)
+  RESEND_NEWSLETTER_SYNC_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === "true" || val === "1"),
+  // SMTP Configuration (wymagane gdy EMAIL_PROVIDER=smtp)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_SECURE: z
+    .string()
+    .optional()
+    .transform((val) => val === "true" || val === "1"), // true dla portu 465 (SSL), false dla 587 (TLS)
+  SMTP_USER: z.string().optional(), // Adres email używany do autoryzacji SMTP
+  SMTP_PASS: z.string().optional(), // Hasło do konta email
+  SMTP_FROM_EMAIL: z.string().email().optional(), // Domyślny adres nadawcy (może być różny od SMTP_USER)
+  SMTP_FROM_EMAIL_SYSTEM: z.string().email().optional(), // Dla maili automatycznych (noreply@)
+  SMTP_FROM_EMAIL_CONTACT: z.string().email().optional(), // Dla maili kontaktowych (kontakt@)
+  SMTP_FROM_NAME: z.string().default("Dream Travel Sport"),
   // Bank account dla przelewów tradycyjnych (opcjonalne)
   BANK_ACCOUNT: z.string().optional(),
 
