@@ -568,14 +568,7 @@ textarea {
   cursor: pointer;
 }
 
-footer {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 20px 32px 26px;
-  font-size: 12px;
-  color: var(--dt-muted);
-  text-align: center;
-  background: #020712;
-}
+/* Footer styles moved to base.css */
 
 @media (max-width: 1024px) {
   header {
@@ -615,5 +608,18 @@ footer {
 
   .nav-cta {
     align-self: flex-end;
+  }
+
+  /* Kafelki w sekcjach #oferta i #dlaczego - pełna szerokość na mobile */
+  #oferta .grid,
+  #dlaczego .grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  #oferta .card,
+  #dlaczego .card {
+    width: 100%;
+    max-width: 100%;
   }
 }

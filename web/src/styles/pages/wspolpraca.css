@@ -51,6 +51,43 @@ h2 {
   margin-bottom: 0;
 }
 
+/* Statystyki w sekcji intro */
+.coop-stats {
+  margin-top: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 780px;
+}
+
+.coop-cta {
+  margin-top: 40px;
+  max-width: 780px;
+}
+
+.coop-stats .stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background: rgba(4, 12, 24, 0.9);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.coop-stats .stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--dt-gold);
+  line-height: 1.2;
+}
+
+.coop-stats .stat-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--dt-muted);
+}
+
 /* Slider sekcja */
 .gallery-section {
   margin-top: 60px;
@@ -285,6 +322,14 @@ footer {
 
   .gallery-slider {
     min-height: 400px;
+  }
+
+  .coop-stats .stat-number {
+    font-size: 28px;
+  }
+
+  .coop-stats .stat-text {
+    font-size: 14px;
   }
 }
 

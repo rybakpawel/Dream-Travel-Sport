@@ -421,7 +421,7 @@ nav.main-nav a:hover::after {
     padding: 8px 12px;
   }
 
-  .cart-badge {
+  .cart-badge.is-visible {
     display: inline-block !important;
   }
 }

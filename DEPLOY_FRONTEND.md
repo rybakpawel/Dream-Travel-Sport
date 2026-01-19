@@ -125,12 +125,15 @@ ls -la dist/
 
    ```
    public_html/
+     ├── .htaccess          ← WAŻNE: Ten plik musi być przesłany!
      ├── index.html
      ├── koszyk.html
      ├── platnosc.html
      ├── assets/
      └── public/
    ```
+
+   **Uwaga:** Plik `.htaccess` jest automatycznie kopiowany do `dist/` podczas buildu. Upewnij się, że został przesłany na serwer (zwykle jest ukryty, włącz pokazywanie ukrytych plików w kliencie FTP).
 
 ### Metoda 2: Panel Cyberfolks (File Manager)
 
@@ -190,6 +193,44 @@ Jeśli wprowadzisz zmiany w kodzie frontendu:
 
 **Wskazówka:** Jeśli używasz FTP, możesz przesłać tylko zmienione pliki (zwykle w katalogu `assets/`) zamiast całego katalogu.
 
+## Krok 6: Konfiguracja nagłówków Cache-Control (WAŻNE!)
+
+Aby zapobiec problemom z cache'owaniem starych treści, musisz skonfigurować nagłówki Cache-Control na serwerze.
+
+### Opcja A: Używając pliku .htaccess (zalecane dla Cyberfolks/Apache)
+
+1. **Utwórz plik `.htaccess`** w katalogu głównym projektu (`web/.htaccess`) - plik został już utworzony w projekcie
+2. **Prześlij plik `.htaccess`** razem z innymi plikami na serwer (do `public_html/` lub `www/`)
+3. Plik automatycznie ustawi odpowiednie nagłówki cache:
+   - HTML: `no-cache` (zawsze pobieraj świeże)
+   - JS/CSS/obrazy z hashem: `max-age=1 rok` (można cache'ować długo, bo nazwy się zmieniają)
+   - PDF: `max-age=1 godzina` (może być aktualizowany)
+
+**Uwaga:** Upewnij się, że moduł `mod_headers` jest włączony na serwerze (zwykle jest domyślnie w Cyberfolks). Jeśli nagłówki nie działają, skontaktuj się z supportem Cyberfolks.
+
+### Opcja B: Przez Panel Cyberfolks (jeśli .htaccess nie działa)
+
+Jeśli plik `.htaccess` nie działa, możesz skonfigurować nagłówki przez panel Cyberfolks:
+
+1. Zaloguj się do panelu Cyberfolks
+2. Przejdź do sekcji "Apache" lub "Headers"
+3. Dodaj reguły dla:
+   - Plików HTML: `Cache-Control: no-cache, no-store, must-revalidate`
+   - Plików JS/CSS z hashem: `Cache-Control: public, max-age=31536000, immutable`
+
+### Weryfikacja
+
+Aby sprawdzić czy nagłówki działają:
+
+1. Otwórz DevTools w przeglądarce (F12)
+2. Przejdź do zakładki "Network"
+3. Odśwież stronę (F5)
+4. Kliknij na `index.html` w liście requestów
+5. Sprawdź zakładkę "Headers"
+6. Szukaj sekcji "Response Headers" - powinieneś zobaczyć `Cache-Control: no-cache, no-store, must-revalidate`
+
+Jeśli nie widzisz tych nagłówków, moduł `mod_headers` może nie być włączony - skontaktuj się z supportem Cyberfolks.
+
 ## Ważne uwagi
 
 1. **Backend URL:** Jeśli backend nie działa jeszcze na produkcji, frontend będzie próbował łączyć się z API, co spowoduje błędy w konsoli. To normalne - aplikacja będzie działać, ale funkcje wymagające API (koszyk, zamówienia) nie będą działać.
@@ -199,6 +240,8 @@ Jeśli wprowadzisz zmiany w kodzie frontendu:
 3. **Backup:** Zawsze rób backup istniejących plików przed wdrożeniem nowych.
 
 4. **Cache przeglądarki:** Po wdrożeniu możesz potrzebować wyczyścić cache przeglądarki (Ctrl+F5) aby zobaczyć zmiany.
+
+5. **Nagłówki Cache-Control:** Jeśli widzisz stare treści na niektórych urządzeniach, upewnij się że plik `.htaccess` został przesłany na serwer i działa poprawnie.
 
 ## Następne kroki
 
