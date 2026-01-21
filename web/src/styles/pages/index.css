@@ -31,7 +31,25 @@
   font-size: 16px;
   color: var(--dt-muted);
   max-width: 520px;
-  margin-bottom: 12px;
+  margin-bottom: 24px;
+}
+
+.hero-check-item {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.hero-check-item:first-of-type {
+  margin-top: 16px;
+}
+
+.hero-check-item i {
+  color: #22c55e; /* Zielony kolor dla checkmark */
+  font-size: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  font-weight: 600;
 }
 
 .hero-copy .hero-note {
@@ -63,7 +81,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  margin-top: 8px;
+  margin-top: 24px;
 }
 
 .hero-cta span {

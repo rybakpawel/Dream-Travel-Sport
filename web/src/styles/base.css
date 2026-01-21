@@ -96,13 +96,24 @@ footer span {
   color: var(--dt-muted);
 }
 
-footer > div {
-  margin-top: 8px;
+.footer-links {
+  margin-top: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   justify-content: center;
+}
+
+.footer-company {
+  margin-top: 12px;
+  color: var(--dt-muted);
+  line-height: 1.6;
+}
+
+.footer-copyright {
+  margin-top: 12px;
+  color: var(--dt-muted);
 }
 
 @media (max-width: 840px) {

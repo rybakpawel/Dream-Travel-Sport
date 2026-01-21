@@ -55,9 +55,12 @@ const magicLinkToken = urlParams.get("token");
 const sessionFromUrl = urlParams.get("session");
 const pointsFromUrl = urlParams.get("points");
 
+// Flaga wskazująca że mamy sesję z magic linku - wymaga synchronizacji koszyka z backendem
+let hasSessionFromMagicLink = false;
 if (sessionFromUrl) {
   // Mamy sesję checkoutu z URL (np. po magic link / po wznowieniu).
   setCurrentSessionId(sessionFromUrl);
+  hasSessionFromMagicLink = true;
   if (pointsFromUrl) {
     // Zastosuj punkty do sesji
     applyPointsToSession(sessionFromUrl, parseInt(pointsFromUrl, 10)).catch(console.error);
@@ -65,6 +68,19 @@ if (sessionFromUrl) {
 }
 
 async function initCartPage() {
+  // 0) Jeśli mamy sesję z magic linku, najpierw zsynchronizuj koszyk z backendem
+  // (to jest źródło prawdy - magic link używa koszyka z sesji backendowej)
+  if (hasSessionFromMagicLink && sessionFromUrl) {
+    try {
+      const syncedCart = await loadCartFromBackend(sessionFromUrl);
+      // Zastąp lokalny koszyk koszykiem z sesji (magic link używa koszyka z sesji)
+      saveCart(syncedCart);
+    } catch (err) {
+      console.error("Failed to sync cart from magic link session:", err);
+      // W przypadku błędu, kontynuuj z lokalnym koszykiem
+    }
+  }
+
   // 1) Add trip from query string (if present)
   const tripFromUrl = readQueryTrip();
   if (tripFromUrl) {
@@ -103,17 +119,37 @@ async function initCartPage() {
 
   // 2) Render + wire handlers
   const rerender = async () => {
-    const cart = loadCart();
+    // Jeśli mamy aktywną sesję checkoutu, zsynchronizuj koszyk z backendem
+    // (backend jest źródłem prawdy dla koszyka z magic linku)
+    const currentSessionId = getCurrentSessionId();
+    const cart = currentSessionId
+      ? await syncCartWithBackend(currentSessionId)
+      : loadCart();
+
     await renderCart({
       cart,
-      onQtyChange: (index, qty) => {
-        const next = setItemQty(loadCart(), index, qty);
-        saveCart(next);
+      onQtyChange: async (index, qty) => {
+        const currentCart = currentSessionId
+          ? await syncCartWithBackend(currentSessionId)
+          : loadCart();
+        const next = setItemQty(currentCart, index, qty);
+        if (currentSessionId) {
+          await saveCartToBackend(next, currentSessionId);
+        } else {
+          saveCart(next);
+        }
         rerender();
       },
-      onRemoveItem: (index) => {
-        const next = removeItem(loadCart(), index);
-        saveCart(next);
+      onRemoveItem: async (index) => {
+        const currentCart = currentSessionId
+          ? await syncCartWithBackend(currentSessionId)
+          : loadCart();
+        const next = removeItem(currentCart, index);
+        if (currentSessionId) {
+          await saveCartToBackend(next, currentSessionId);
+        } else {
+          saveCart(next);
+        }
         rerender();
       }
     });
@@ -457,6 +493,9 @@ async function initCartPage() {
       }
 
       // Nie pokazuj sekcji jeśli email nie jest poprawny
+      if (!emailInput) {
+        return;
+      }
       const email = emailInput.value.trim();
       if (validateEmail(email)) {
         hideLoyaltyUi();
@@ -464,7 +503,11 @@ async function initCartPage() {
         return;
       }
 
-      const cart = loadCart();
+      // Jeśli mamy aktywną sesję, użyj koszyka z backendu (źródło prawdy)
+      const currentSessionId = getCurrentSessionId();
+      const cart = currentSessionId
+        ? await syncCartWithBackend(currentSessionId)
+        : loadCart();
       if (cart.length === 0) {
         hideLoyaltyUi();
         hideLoyaltyEarnSection();
@@ -611,13 +654,21 @@ async function initCartPage() {
     if (requestMagicLinkBtn && !magicLinkListenerBound) {
       magicLinkListenerBound = true;
       requestMagicLinkBtn.addEventListener("click", async () => {
+        if (!emailInput) {
+          notifications.warning("Wpisz poprawny adres e-mail.");
+          return;
+        }
         const email = emailInput.value.trim();
         if (validateEmail(email)) {
           notifications.warning("Wpisz poprawny adres e-mail.");
           return;
         }
 
-        const cart = loadCart();
+        // Jeśli mamy aktywną sesję, użyj koszyka z backendu (źródło prawdy)
+        const currentSessionId = getCurrentSessionId();
+        const cart = currentSessionId
+          ? await syncCartWithBackend(currentSessionId)
+          : loadCart();
         if (cart.length === 0) {
           notifications.warning("Koszyk jest pusty");
           return;
@@ -680,7 +731,7 @@ async function initCartPage() {
         provider === "PRZELEWY24" ? "Złóż rezerwację i zapłać online" : "Złóż rezerwację";
     };
     document
-      .querySelectorAll<HTMLInputElement>('input[name="pay"]')
+      .querySelectorAll<HTMLInputElement>('input[name="pay"]:not([disabled])')
       .forEach((el) => el.addEventListener("change", updateOrderButtonLabel));
     updateOrderButtonLabel();
 
