@@ -22,6 +22,12 @@ body {
   background: radial-gradient(circle at top, #102345 0, #020712 55%, #000000 100%);
   color: var(--dt-light);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
 }
 
 a { color: inherit; text-decoration: none; }

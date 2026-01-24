@@ -54,12 +54,27 @@ const urlParams = new URLSearchParams(window.location.search);
 const magicLinkToken = urlParams.get("token");
 const sessionFromUrl = urlParams.get("session");
 const pointsFromUrl = urlParams.get("points");
+const errorFromUrl = urlParams.get("error");
+const errorMessageFromUrl = urlParams.get("message");
+
+// Obsłuż błędy z magic linku (jeśli są w URL)
+if (errorFromUrl && errorMessageFromUrl) {
+  // Pokaż ładny komunikat błędu zamiast surowego JSON
+  notifications.error(decodeURIComponent(errorMessageFromUrl));
+  
+  // Usuń parametry błędu z URL (żeby nie pokazywać się przy odświeżeniu)
+  const newUrl = new URL(window.location.href);
+  newUrl.searchParams.delete("error");
+  newUrl.searchParams.delete("message");
+  window.history.replaceState({}, "", newUrl.toString());
+}
 
 // Flaga wskazująca że mamy sesję z magic linku - wymaga synchronizacji koszyka z backendem
 let hasSessionFromMagicLink = false;
 if (sessionFromUrl) {
   // Mamy sesję checkoutu z URL (np. po magic link / po wznowieniu).
-  setCurrentSessionId(sessionFromUrl);
+  // Użyj osobnego localStorage key dla magic linku (izolacja od normalnego checkoutu)
+  setCurrentSessionId(sessionFromUrl, true);
   hasSessionFromMagicLink = true;
   if (pointsFromUrl) {
     // Zastosuj punkty do sesji
@@ -70,14 +85,14 @@ if (sessionFromUrl) {
 async function initCartPage() {
   // 0) Jeśli mamy sesję z magic linku, najpierw zsynchronizuj koszyk z backendem
   // (to jest źródło prawdy - magic link używa koszyka z sesji backendowej)
+  // UWAGA: Nie zapisujemy do localStorage - magic link jest izolowany
   if (hasSessionFromMagicLink && sessionFromUrl) {
     try {
-      const syncedCart = await loadCartFromBackend(sessionFromUrl);
-      // Zastąp lokalny koszyk koszykiem z sesji (magic link używa koszyka z sesji)
-      saveCart(syncedCart);
+      await loadCartFromBackend(sessionFromUrl, true);
+      // Koszyk magic linku jest tylko w backendzie, nie w localStorage
     } catch (err) {
       console.error("Failed to sync cart from magic link session:", err);
-      // W przypadku błędu, kontynuuj z lokalnym koszykiem
+      // W przypadku błędu, kontynuuj z pustym koszykiem (magic link nie używa localStorage)
     }
   }
 
@@ -121,41 +136,109 @@ async function initCartPage() {
   const rerender = async () => {
     // Jeśli mamy aktywną sesję checkoutu, zsynchronizuj koszyk z backendem
     // (backend jest źródłem prawdy dla koszyka z magic linku)
-    const currentSessionId = getCurrentSessionId();
+    const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
     const cart = currentSessionId
-      ? await syncCartWithBackend(currentSessionId)
+      ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
       : loadCart();
 
     await renderCart({
       cart,
       onQtyChange: async (index, qty) => {
-        const currentCart = currentSessionId
-          ? await syncCartWithBackend(currentSessionId)
-          : loadCart();
-        const next = setItemQty(currentCart, index, qty);
-        if (currentSessionId) {
-          await saveCartToBackend(next, currentSessionId);
-        } else {
-          saveCart(next);
+        try {
+          const currentCart = currentSessionId
+            ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
+            : loadCart();
+          const next = setItemQty(currentCart, index, qty);
+          if (currentSessionId) {
+            try {
+              await saveCartToBackend(next, currentSessionId, hasSessionFromMagicLink);
+            } catch (err) {
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              if (errorMessage.includes("PAID") || errorMessage.includes("zakończona")) {
+                // Sesja jest PAID - wyczyść sesję i koszyk (zamówienie zostało już złożone)
+                setCurrentSessionId(null, hasSessionFromMagicLink);
+                // WAŻNE: Wyczyść localStorage zawsze, bo zamówienie zostało już złożone
+                saveCart([]);
+                notifications.warning("To zamówienie zostało już złożone. Koszyk został wyczyszczony.");
+                rerender();
+              } else {
+                throw err;
+              }
+            }
+          } else {
+            saveCart(next);
+          }
+          rerender();
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          if (errorMessage.includes("PAID") || errorMessage.includes("zakończona")) {
+            // Sesja jest PAID - zsynchronizuj z backendem (zwróci pusty koszyk)
+            await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink);
+            setCurrentSessionId(null, hasSessionFromMagicLink);
+            // WAŻNE: Wyczyść localStorage zawsze, bo może zawierać stary koszyk
+            saveCart([]);
+            notifications.warning("To zamówienie zostało już złożone. Koszyk został wyczyszczony.");
+            rerender();
+          } else {
+            notifications.error("Nie udało się zmienić ilości. Spróbuj ponownie.");
+          }
         }
-        rerender();
       },
       onRemoveItem: async (index) => {
-        const currentCart = currentSessionId
-          ? await syncCartWithBackend(currentSessionId)
-          : loadCart();
-        const next = removeItem(currentCart, index);
-        if (currentSessionId) {
-          await saveCartToBackend(next, currentSessionId);
-        } else {
-          saveCart(next);
+        try {
+          const currentCart = currentSessionId
+            ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
+            : loadCart();
+          const next = removeItem(currentCart, index);
+          if (currentSessionId) {
+            try {
+              await saveCartToBackend(next, currentSessionId, hasSessionFromMagicLink);
+            } catch (err) {
+              const errorMessage = err instanceof Error ? err.message : String(err);
+              if (errorMessage.includes("PAID") || errorMessage.includes("zakończona")) {
+                // Sesja jest PAID - wyczyść sesję i koszyk (zamówienie zostało już złożone)
+                setCurrentSessionId(null, hasSessionFromMagicLink);
+                // WAŻNE: Wyczyść localStorage zawsze, bo zamówienie zostało już złożone
+                saveCart([]);
+                notifications.warning("To zamówienie zostało już złożone. Koszyk został wyczyszczony.");
+                rerender();
+              } else {
+                throw err;
+              }
+            }
+          } else {
+            saveCart(next);
+          }
+          rerender();
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          if (errorMessage.includes("PAID") || errorMessage.includes("zakończona")) {
+            // Sesja jest PAID - zsynchronizuj z backendem (zwróci pusty koszyk)
+            await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink);
+            setCurrentSessionId(null, hasSessionFromMagicLink);
+            // WAŻNE: Wyczyść localStorage zawsze, bo może zawierać stary koszyk
+            saveCart([]);
+            notifications.warning("To zamówienie zostało już złożone. Koszyk został wyczyszczony.");
+            rerender();
+          } else {
+            notifications.error("Nie udało się usunąć pozycji. Spróbuj ponownie.");
+          }
         }
-        rerender();
       }
     });
 
     // Po każdym rerenderze zaktualizuj wyświetlaną zniżkę z punktów (jeśli sekcja jest widoczna)
     updateLoyaltyPointsDisplayFromDom();
+    
+    // Zaktualizuj badge koszyka (również dla magic linku)
+    // W magic linku zapisz koszyk do localStorage TYLKO dla badge (nie modyfikuje logiki)
+    if (hasSessionFromMagicLink && currentSessionId && cart.length > 0) {
+      // Tymczasowo zapisz koszyk do localStorage dla badge (tylko do odczytu)
+      // To nie wpływa na izolację magic linku, bo badge tylko czyta
+      saveCart(cart);
+      // Wywołaj event żeby badge się zaktualizował
+      window.dispatchEvent(new CustomEvent("dts:cart-changed", { detail: { cart } }));
+    }
   };
 
   await rerender();
@@ -456,16 +539,30 @@ async function initCartPage() {
     updateLoyaltyPointsDisplayFromDom = updateLoyaltyPointsDisplayFromDomImpl;
 
     async function ensureCheckoutSessionForEmail(email: string, cart: Cart): Promise<string> {
-      const currentSessionId = getCurrentSessionId();
+      // Jeśli jesteśmy w magic linku, nie używaj istniejących sesji (izolacja)
+      if (hasSessionFromMagicLink) {
+        const currentSessionId = getCurrentSessionId(true);
+        if (currentSessionId) {
+          // Użyj sesji magic linku (już istnieje)
+          return currentSessionId;
+        }
+      }
+
+      const currentSessionId = getCurrentSessionId(false);
       if (currentSessionId) {
         try {
           const existing = await getCheckoutSession(currentSessionId);
           const status = existing.session.status;
           const emailMatches = existing.session.customerEmail === email;
           if (status === "PENDING" && emailMatches) {
-            await saveCartToBackend(cart, currentSessionId);
-            setCurrentSessionId(currentSessionId);
+            await saveCartToBackend(cart, currentSessionId, false);
+            setCurrentSessionId(currentSessionId, false);
             return currentSessionId;
+          }
+          // Jeśli sesja jest PAID (zamówienie zostało złożone), usuń ją i utwórz nową
+          if (status === "PAID") {
+            setCurrentSessionId(null, false);
+            // Kontynuuj do utworzenia nowej sesji
           }
         } catch {
           // ignore i utwórz nową sesję
@@ -473,8 +570,8 @@ async function initCartPage() {
       }
 
       const newSessionId = await createCheckoutSession(email, cart);
-      setCurrentSessionId(newSessionId);
-      await saveCartToBackend(cart, newSessionId);
+      setCurrentSessionId(newSessionId, false);
+      await saveCartToBackend(cart, newSessionId, false);
       return newSessionId;
     }
 
@@ -504,9 +601,10 @@ async function initCartPage() {
       }
 
       // Jeśli mamy aktywną sesję, użyj koszyka z backendu (źródło prawdy)
-      const currentSessionId = getCurrentSessionId();
+      // W magic linku używamy sesji magic linku, w normalnym checkoutcie normalnej sesji
+      const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
       const cart = currentSessionId
-        ? await syncCartWithBackend(currentSessionId)
+        ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
         : loadCart();
       if (cart.length === 0) {
         hideLoyaltyUi();
@@ -526,6 +624,8 @@ async function initCartPage() {
       loyaltyRefreshInFlight = true;
 
       try {
+        // W normalnym checkoutcie utwórz/znajdź sesję dla tego emaila
+        // W magic linku użyj istniejącej sesji magic linku
         const sessionId = await ensureCheckoutSessionForEmail(email, cart);
         loyaltySessionId = sessionId;
 
@@ -567,9 +667,18 @@ async function initCartPage() {
           return;
         }
 
+        // WAŻNE: Checkbox do użycia punktów jest dostępny TYLKO w magic linku
+        // W normalnym checkoutcie, nawet jeśli sesja jest zweryfikowana, nie pokazuj checkboxa
+        if (!hasSessionFromMagicLink) {
+          // W normalnym checkoutcie pokaż przycisk magic linku (nie checkbox)
+          hideLoyaltySection();
+          showLoyaltyVerifySection(buildLoyaltyVerifyMessage(pointsBalance), true);
+          return;
+        }
+
         hideLoyaltyVerifySection();
 
-        // Po weryfikacji: pokaż checkbox i pozwól użyć punktów
+        // Po weryfikacji w magic linku: pokaż checkbox i pozwól użyć punktów
         // (hasPoints już sprawdziliśmy wyżej, ale zostawiamy defensywnie).
         if (loyaltyAvailablePoints <= 0) {
           hideLoyaltyUi();
@@ -650,6 +759,43 @@ async function initCartPage() {
     // Obsłuż przypadek autofill (przeglądarka wstawi email bez eventu input)
     scheduleRefresh();
 
+    // Jeśli mamy sesję z magic linku, odśwież UI Dream Points żeby pokazać zniżkę
+    // i zablokuj edycję emaila (magic link jest przypisany do konkretnego emaila)
+    if (hasSessionFromMagicLink && sessionFromUrl && emailInput) {
+      // Ustaw email z sesji (jeśli dostępny) żeby UI się odświeżyło
+      (async () => {
+        try {
+          const session = await getCheckoutSession(sessionFromUrl);
+          if (session.session.customerEmail) {
+            emailInput.value = session.session.customerEmail;
+            // Zablokuj edycję emaila - magic link jest przypisany do konkretnego emaila
+            emailInput.readOnly = true;
+            // Zachowaj normalny wygląd pola, ale dodaj subtelny wskaźnik że jest zablokowane
+            emailInput.style.backgroundColor = "rgba(3,10,22,0.9)"; // Normalny kolor tła pola
+            emailInput.style.cursor = "default";
+            emailInput.style.opacity = "0.9"; // Subtelne przyciemnienie
+            emailInput.style.borderColor = "rgba(255,255,255,0.2)"; // Subtelnie jaśniejszy border
+            emailInput.title = "Email z magic linku - nie można zmienić";
+            
+            // Usuń event listenery na zmianę emaila (nie są potrzebne w magic linku)
+            emailInput.removeEventListener("input", scheduleRefresh);
+            emailInput.removeEventListener("blur", () => {
+              refreshLoyaltyPointsUi().catch((err) => console.warn("Loyalty UI refresh failed:", err));
+            });
+          }
+          // Odśwież UI Dream Points żeby pokazać zniżkę
+          setTimeout(() => {
+            // Wywołaj refresh po krótkim opóźnieniu, żeby UI się zaktualizowało
+            if (emailInput) {
+              refreshLoyaltyPointsUi().catch((err) => console.warn("Loyalty UI refresh failed:", err));
+            }
+          }, 300);
+        } catch (err) {
+          console.warn("Failed to refresh loyalty UI from magic link session:", err);
+        }
+      })();
+    }
+
     // Weryfikacja Dream Points (magic link) - bez tego nie pokazujemy salda i nie pozwalamy użyć punktów
     if (requestMagicLinkBtn && !magicLinkListenerBound) {
       magicLinkListenerBound = true;
@@ -665,9 +811,9 @@ async function initCartPage() {
         }
 
         // Jeśli mamy aktywną sesję, użyj koszyka z backendu (źródło prawdy)
-        const currentSessionId = getCurrentSessionId();
+        const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
         const cart = currentSessionId
-          ? await syncCartWithBackend(currentSessionId)
+          ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
           : loadCart();
         if (cart.length === 0) {
           notifications.warning("Koszyk jest pusty");
@@ -791,7 +937,11 @@ async function initCartPage() {
     const previewAgreementBtn = document.getElementById("preview-agreement-btn");
     if (previewAgreementBtn) {
       previewAgreementBtn.addEventListener("click", async () => {
-        const cart = loadCart();
+        // Pobierz koszyk - jeśli mamy sesję, użyj koszyka z backendu (magic link lub normalna sesja)
+        const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
+        const cart = currentSessionId
+          ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
+          : loadCart();
         if (cart.length === 0) {
           notifications.warning("Koszyk jest pusty");
           return;
@@ -886,16 +1036,51 @@ async function initCartPage() {
           const companyTaxId = isCompany ? (companyTaxIdInput?.value.trim() || null) : null;
           const companyAddress = isCompany ? (companyAddressInput?.value.trim() || null) : null;
 
-          // Pobierz koszyk (użyj lokalnego koszyka, nie wymagamy sesji dla podglądu)
-          const localCart = loadCart();
+          // Pobierz koszyk - jeśli mamy sesję, użyj koszyka z backendu (zawiera informacje o zniżce)
+          const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
+          const cart = currentSessionId
+            ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
+            : loadCart();
           const tripsData = [];
           
           // Funkcja pomocnicza do normalizacji numeru dokumentu
           const normalizeDocumentNumber = (value: string) =>
             value.replace(/\s+/g, "").replace(/-/g, "").toUpperCase();
           
-          for (let itemIndex = 0; itemIndex < localCart.length; itemIndex++) {
-            const item = localCart[itemIndex];
+          // Pobierz informacje o zniżce z Dream Points (jeśli sesja jest zweryfikowana)
+          let pointsDiscountCents = 0;
+          if (currentSessionId) {
+            try {
+              const session = await getCheckoutSession(currentSessionId);
+              const loyaltyVerified = (session.session as unknown as { loyaltyVerified?: boolean })
+                .loyaltyVerified;
+              const pointsReserved = session.session.pointsReserved ?? 0;
+              if (loyaltyVerified && pointsReserved > 0 && usePointsCheckbox?.checked) {
+                // Oblicz zniżkę z punktów
+                let baseTotalCents = 0;
+                for (const item of cart) {
+                  if (item.priceCents !== undefined && item.priceCents !== null && item.priceCents > 0) {
+                    baseTotalCents += item.priceCents * item.qty;
+                  } else {
+                    try {
+                      const trip = (await tripsApi.getBySlug(item.id)) as TripFromApi;
+                      baseTotalCents += (trip.priceCents || 0) * item.qty;
+                    } catch {
+                      // ignore
+                    }
+                  }
+                }
+                const maxPointsByLimit = Math.floor(baseTotalCents / 500);
+                const effectivePoints = Math.min(pointsReserved, maxPointsByLimit);
+                pointsDiscountCents = Math.min(effectivePoints * 100, baseTotalCents);
+              }
+            } catch (err) {
+              console.warn("Failed to get points discount for PDF:", err);
+            }
+          }
+
+          for (let itemIndex = 0; itemIndex < cart.length; itemIndex++) {
+            const item = cart[itemIndex];
             if (!item.id) continue;
             try {
               const trip = (await tripsApi.getBySlug(item.id)) as TripFromApi;
@@ -965,7 +1150,8 @@ async function initCartPage() {
               companyName,
               companyTaxId,
               companyAddress,
-              trips: tripsData
+              trips: tripsData,
+              pointsDiscountCents: pointsDiscountCents // Przekaż zniżkę z Dream Points
             })
           });
 
@@ -1021,7 +1207,11 @@ async function initCartPage() {
     }
 
     orderForm.addEventListener("click", async () => {
-      const cart = loadCart();
+      // Pobierz koszyk - jeśli mamy sesję, użyj koszyka z backendu (magic link lub normalna sesja)
+      const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
+      const cart = currentSessionId
+        ? await syncCartWithBackend(currentSessionId, hasSessionFromMagicLink)
+        : loadCart();
       if (cart.length === 0) {
         notifications.warning("Koszyk jest pusty");
         return;
@@ -1111,9 +1301,58 @@ async function initCartPage() {
       await withButtonLoading(
         orderForm,
         async () => {
-          // Upewnij się, że mamy sesję checkoutu dla tego emaila (potrzebne m.in. dla Dream Points)
-          const currentCart = loadCart();
-          const sessionId = await ensureCheckoutSessionForEmail(email, currentCart);
+          // Jeśli mamy sesję z magic linku (zweryfikowaną), użyj jej zamiast tworzyć nową
+          // To zapobiega naliczaniu punktów w "starej karcie" bez weryfikacji
+          let sessionId: string;
+          const currentSessionId = getCurrentSessionId(hasSessionFromMagicLink);
+          
+          if (hasSessionFromMagicLink && currentSessionId && sessionFromUrl === currentSessionId) {
+            // Mamy sesję z magic linku - sprawdź czy jest zweryfikowana i użyj jej
+            try {
+              const session = await getCheckoutSession(currentSessionId);
+              const loyaltyVerified = (session.session as unknown as { loyaltyVerified?: boolean })
+                .loyaltyVerified;
+              
+              // Użyj sesji z magic linku tylko jeśli jest zweryfikowana
+              // i email się zgadza (lub wymuś użycie emaila z sesji)
+              if (loyaltyVerified) {
+                // Jeśli email się nie zgadza, użyj emaila z sesji (magic link jest dla konkretnego emaila)
+                const sessionEmail = session.session.customerEmail;
+                if (sessionEmail && sessionEmail !== email) {
+                  notifications.warning(
+                    `Aby użyć Dream Points, użyj adresu email ${sessionEmail} (z magic linku)`
+                  );
+                  if (emailInput) {
+                    emailInput.value = sessionEmail;
+                    emailInput.focus();
+                  }
+                  throw new Error("Email mismatch with magic link session");
+                }
+                sessionId = currentSessionId;
+                // Zsynchronizuj koszyk z sesją (magic link - izolacja)
+                const sessionCart = await loadCartFromBackend(sessionId, true);
+                await saveCartToBackend(sessionCart, sessionId, true);
+              } else {
+                // Sesja nie jest zweryfikowana - utwórz nową (bez punktów)
+                const currentCart = getCurrentSessionId(false)
+                  ? await syncCartWithBackend(getCurrentSessionId(false)!, false)
+                  : loadCart();
+                sessionId = await ensureCheckoutSessionForEmail(email, currentCart);
+              }
+            } catch (err) {
+              // Jeśli błąd, utwórz nową sesję (bez punktów)
+              const currentCart = getCurrentSessionId(false)
+                ? await syncCartWithBackend(getCurrentSessionId(false)!, false)
+                : loadCart();
+              sessionId = await ensureCheckoutSessionForEmail(email, currentCart);
+            }
+          } else {
+            // Brak sesji z magic linku - normalny flow
+            const currentCart = getCurrentSessionId(false)
+              ? await syncCartWithBackend(getCurrentSessionId(false)!, false)
+              : loadCart();
+            sessionId = await ensureCheckoutSessionForEmail(email, currentCart);
+          }
 
           // Sprawdź czy sesja jest nadal aktywna przed kontynuowaniem
           const canProceedCheckout = await handleInvalidSession(
@@ -1165,7 +1404,7 @@ async function initCartPage() {
           };
 
           // Użyj aktualnego koszyka z sesji
-          const sessionCart = await loadCartFromBackend(sessionId);
+          const sessionCart = await loadCartFromBackend(sessionId, hasSessionFromMagicLink);
 
           // Pobierz dane pasażerów dla każdego wyjazdu osobno
           const items: Array<{
@@ -1333,7 +1572,26 @@ async function initCartPage() {
           }
 
           // Sprawdź czy użytkownik chce użyć punktów
-          const usePoints = usePointsCheckbox?.checked ?? false;
+          // WAŻNE: Punkty można używać TYLKO jeśli sesja jest zweryfikowana magic linkiem
+          let usePoints = false;
+          if (usePointsCheckbox?.checked) {
+            // Sprawdź czy sesja jest zweryfikowana
+            try {
+              const session = await getCheckoutSession(sessionId);
+              const loyaltyVerified = (session.session as unknown as { loyaltyVerified?: boolean })
+                .loyaltyVerified;
+              if (loyaltyVerified) {
+                usePoints = true;
+              } else {
+                // Sesja nie jest zweryfikowana - nie używaj punktów
+                console.warn("Cannot use points: session is not verified via magic link");
+                usePoints = false;
+              }
+            } catch (err) {
+              console.error("Failed to verify session for points usage:", err);
+              usePoints = false;
+            }
+          }
 
           // Utwórz zamówienie
           // UWAGA: Po utworzeniu zamówienia, sesja zostanie oznaczona jako PAID,
@@ -1396,8 +1654,10 @@ async function initCartPage() {
 
             // Nawet jeśli init płatności nie wyszedł, zamówienie już istnieje - pokaż ekran statusu,
             // na którym użytkownik może wznowić płatność.
+            // Wyczyść koszyk i sesję (magic link lub normalna)
+            // WAŻNE: Czyścimy localStorage zawsze, bo może zawierać stary koszyk z wcześniejszej sesji
             saveCart([]);
-            setCurrentSessionId(null);
+            setCurrentSessionId(null, hasSessionFromMagicLink);
             window.location.href = `platnosc.html?order=${encodeURIComponent(
               orderResponse.order.orderNumber
             )}`;
@@ -1405,8 +1665,11 @@ async function initCartPage() {
           }
 
           // Wyczyść koszyk i sesję po utworzeniu zamówienia (żeby uniknąć dubli / pomyłek po powrocie)
+          // WAŻNE: Czyścimy localStorage zawsze, bo może zawierać stary koszyk z wcześniejszej sesji
+          // (np. użytkownik miał koszyk w localStorage, złożył zamówienie przez magic link,
+          // a potem wraca na stronę bez parametru session - wtedy frontend użyje localStorage)
           saveCart([]);
-          setCurrentSessionId(null);
+          setCurrentSessionId(null, hasSessionFromMagicLink);
 
           if (paymentResponse?.redirectUrl) {
             // Redirect do P24

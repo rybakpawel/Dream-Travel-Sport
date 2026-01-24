@@ -7,6 +7,19 @@ function formatQty(qty: number): string {
 }
 
 function getCartTotalQty(): number {
+  // Sprawdź czy jesteśmy w magic linku (sprawdź URL params lub localStorage)
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionFromUrl = urlParams.get("session");
+  const magicLinkSessionId = sessionFromUrl || localStorage.getItem("checkoutSessionIdMagicLink");
+  
+  if (magicLinkSessionId) {
+    // W magic linku - koszyk jest tylko w backendzie, nie w localStorage
+    // Dla badge używamy localStorage jako fallback (może być pusty)
+    // Badge będzie zaktualizowany przez rerender koszyka
+    const cart = loadCart();
+    return cart.length;
+  }
+  
   const cart = loadCart();
   return cart.length; // Liczba wyjazdów, nie uczestników
 }

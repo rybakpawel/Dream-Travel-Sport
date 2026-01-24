@@ -2,7 +2,9 @@ import { checkoutApi } from "../../api/client.js";
 import type { Cart } from "../cart/types.js";
 
 let currentSessionId: string | null = null;
+let currentMagicLinkSessionId: string | null = null;
 const CHECKOUT_SESSION_KEY = "checkoutSessionId";
+const MAGIC_LINK_SESSION_KEY = "checkoutSessionIdMagicLink";
 
 export async function createCheckoutSession(
   customerEmail: string,
@@ -13,7 +15,7 @@ export async function createCheckoutSession(
       customerEmail,
       cartData
     });
-    setCurrentSessionId(response.session.id);
+    setCurrentSessionId(response.session.id, false);
     return response.session.id;
   } catch (err) {
     console.error("Failed to create checkout session:", err);
@@ -21,7 +23,17 @@ export async function createCheckoutSession(
   }
 }
 
-export function getCurrentSessionId(): string | null {
+export function getCurrentSessionId(isMagicLink: boolean = false): string | null {
+  if (isMagicLink) {
+    if (currentMagicLinkSessionId) return currentMagicLinkSessionId;
+    const stored = localStorage.getItem(MAGIC_LINK_SESSION_KEY);
+    if (stored) {
+      currentMagicLinkSessionId = stored;
+      return stored;
+    }
+    return currentMagicLinkSessionId;
+  }
+  
   if (currentSessionId) return currentSessionId;
   const stored = localStorage.getItem(CHECKOUT_SESSION_KEY);
   if (stored) {
@@ -31,12 +43,21 @@ export function getCurrentSessionId(): string | null {
   return currentSessionId;
 }
 
-export function setCurrentSessionId(sessionId: string | null): void {
-  currentSessionId = sessionId;
-  if (sessionId) {
-    localStorage.setItem(CHECKOUT_SESSION_KEY, sessionId);
+export function setCurrentSessionId(sessionId: string | null, isMagicLink: boolean = false): void {
+  if (isMagicLink) {
+    currentMagicLinkSessionId = sessionId;
+    if (sessionId) {
+      localStorage.setItem(MAGIC_LINK_SESSION_KEY, sessionId);
+    } else {
+      localStorage.removeItem(MAGIC_LINK_SESSION_KEY);
+    }
   } else {
-    localStorage.removeItem(CHECKOUT_SESSION_KEY);
+    currentSessionId = sessionId;
+    if (sessionId) {
+      localStorage.setItem(CHECKOUT_SESSION_KEY, sessionId);
+    } else {
+      localStorage.removeItem(CHECKOUT_SESSION_KEY);
+    }
   }
 }
 

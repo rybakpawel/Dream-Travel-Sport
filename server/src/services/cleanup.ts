@@ -1,5 +1,6 @@
 import {
   CheckoutSessionStatus,
+  LoyaltyTxnType,
   OrderStatus,
   PaymentProvider,
   PaymentStatus,
@@ -80,6 +81,25 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
           session.order.status === OrderStatus.SUBMITTED &&
           session.order.payments.length === 0
         ) {
+          // Pobierz pełne dane zamówienia (potrzebujemy orderNumber)
+          const fullOrder = await tx.order.findUnique({
+            where: { id: session.order.id },
+            select: { orderNumber: true }
+          });
+
+          // Sprawdź czy zamówienie ma transakcję SPEND (punkty były odjęte przy składaniu)
+          const spendTransaction = await tx.loyaltyTransaction.findFirst({
+            where: {
+              orderId: session.order.id,
+              type: LoyaltyTxnType.SPEND
+            },
+            include: {
+              account: {
+                select: { id: true }
+              }
+            }
+          });
+
           // Anuluj zamówienie bez płatności
           await tx.order.update({
             where: { id: session.order.id },
@@ -117,6 +137,28 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
                 seatsLeft: newSeatsLeft,
                 availability: nextAvailability
               }
+            });
+          }
+
+          // Zwróć punkty do konta (jeśli były odjęte przy składaniu zamówienia)
+          if (spendTransaction && spendTransaction.account && fullOrder) {
+            const pointsToReturn = Math.abs(spendTransaction.points);
+            
+            // Utwórz transakcję EARN z notatką o zwrocie
+            await tx.loyaltyTransaction.create({
+              data: {
+                accountId: spendTransaction.account.id,
+                type: LoyaltyTxnType.EARN,
+                points: pointsToReturn,
+                note: `Zwrot punktów za anulowane zamówienie ${fullOrder.orderNumber}`,
+                orderId: session.order.id
+              }
+            });
+
+            // Zaktualizuj saldo konta
+            await tx.loyaltyAccount.update({
+              where: { id: spendTransaction.account.id },
+              data: { pointsBalance: { increment: pointsToReturn } }
             });
           }
         }
@@ -261,6 +303,19 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
           return;
         }
 
+        // Sprawdź czy zamówienie ma transakcję SPEND (punkty były odjęte przy składaniu)
+        const spendTransaction = await tx.loyaltyTransaction.findFirst({
+          where: {
+            orderId: currentOrder.id,
+            type: LoyaltyTxnType.SPEND
+          },
+          include: {
+            account: {
+              select: { id: true }
+            }
+          }
+        });
+
         // Anuluj zamówienie
         await tx.order.update({
           where: { id: currentOrder.id },
@@ -276,6 +331,28 @@ export async function cleanupExpiredSessionsAndTokens(): Promise<{
           },
           data: { status: PaymentStatus.CANCELLED }
         });
+
+        // Zwróć punkty do konta (jeśli były odjęte przy składaniu zamówienia)
+        if (spendTransaction && spendTransaction.account) {
+          const pointsToReturn = Math.abs(spendTransaction.points);
+          
+          // Utwórz transakcję EARN z notatką o zwrocie
+          await tx.loyaltyTransaction.create({
+            data: {
+              accountId: spendTransaction.account.id,
+              type: LoyaltyTxnType.EARN,
+              points: pointsToReturn,
+              note: `Zwrot punktów za anulowane zamówienie ${currentOrder.orderNumber}`,
+              orderId: currentOrder.id
+            }
+          });
+
+          // Zaktualizuj saldo konta
+          await tx.loyaltyAccount.update({
+            where: { id: spendTransaction.account.id },
+            data: { pointsBalance: { increment: pointsToReturn } }
+          });
+        }
 
         // Zwolnij miejsca
         for (const item of currentOrder.items) {

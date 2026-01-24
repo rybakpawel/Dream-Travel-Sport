@@ -863,7 +863,8 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
             items: true,
             payments: true,
             checkoutSession: true,
-            user: { include: { loyaltyAccount: true } }
+            user: { include: { loyaltyAccount: true } },
+            loyaltyTransactions: { select: { id: true, type: true } }
           }
         });
 
@@ -953,63 +954,54 @@ export function createAdminRouter(env: Env, emailService: EmailService | null): 
           data: { status: OrderStatus.CONFIRMED }
         });
 
-        // Punkty lojalnościowe: nalicz/odejmij dokładnie raz (idempotencja po orderId)
+        // Punkty lojalnościowe: nalicz/odejmij dokładnie raz (idempotencja per orderId+type)
+        // SPEND tworzymy przy składaniu zamówienia (orders.ts), więc tutaj tylko gdy brak (stare zamówienia).
+        // EARN naliczamy zawsze przy potwierdzeniu płatności – od kwoty PO zniżce z punktów (order.totalCents).
         if (order.user?.loyaltyAccount) {
           const account = order.user.loyaltyAccount;
+          const pointsUsed = order.checkoutSession?.pointsReserved ?? 0;
+          const pointsToEarn = Math.floor(order.totalCents / 1000); // 10% wartości PO zniżce (1 pkt = 1 zł)
 
-          const existingTxn = await tx.loyaltyTransaction.findFirst({
-            where: { orderId: order.id, accountId: account.id }
-          });
+          const alreadySpend = (order as { loyaltyTransactions?: { type: string }[] }).loyaltyTransactions?.some(
+            (t) => t.type === LoyaltyTxnType.SPEND
+          );
+          const alreadyEarn = (order as { loyaltyTransactions?: { type: string }[] }).loyaltyTransactions?.some(
+            (t) => t.type === LoyaltyTxnType.EARN
+          );
 
-          if (!existingTxn) {
-            const pointsUsed = order.checkoutSession?.pointsReserved ?? 0;
+          if (pointsUsed > 0 && !alreadySpend) {
+            await tx.loyaltyTransaction.create({
+              data: {
+                accountId: account.id,
+                type: LoyaltyTxnType.SPEND,
+                points: -pointsUsed,
+                note: `Użycie punktów w zamówieniu ${order.orderNumber}`,
+                orderId: order.id
+              }
+            });
+            await tx.loyaltyAccount.update({
+              where: { id: account.id },
+              data: { pointsBalance: { decrement: pointsUsed } }
+            });
+          }
 
-            // 1) Odejmij użyte punkty (jeśli były użyte)
-            if (pointsUsed > 0) {
-              await tx.loyaltyTransaction.create({
-                data: {
-                  accountId: account.id,
-                  type: LoyaltyTxnType.SPEND,
-                  points: -pointsUsed,
-                  note: `Użycie punktów w zamówieniu ${order.orderNumber}`,
-                  orderId: order.id
-                }
-              });
-
-              await tx.loyaltyAccount.update({
-                where: { id: account.id },
-                data: { pointsBalance: { decrement: pointsUsed } }
-              });
-            }
-
-            // 2) Nalicz nowe punkty (10% wartości zamówienia PRZED zniżką z punktów)
-            // 10% wartości zamówienia PO zniżce (1 punkt = 1 zł).
-            // order.totalCents jest już po zniżce i jest w groszach, więc / 1000 daje punkty.
-            const pointsToEarn = Math.floor(order.totalCents / 1000);
-
-            if (pointsToEarn > 0) {
-              const expiresAt = calculateExpirationDate(new Date());
-
-              await tx.loyaltyTransaction.create({
-                data: {
-                  accountId: account.id,
-                  type: LoyaltyTxnType.EARN,
-                  points: pointsToEarn,
-                  note: `Naliczono punkty za zamówienie ${order.orderNumber} (10% wartości)`,
-                  orderId: order.id,
-                  expiresAt
-                }
-              });
-
-              // Aktualizacja pointsBalance - użyjemy getAvailablePoints() w przyszłości,
-              // ale na razie zachowujemy denormalizację dla kompatybilności
-              await tx.loyaltyAccount.update({
-                where: { id: account.id },
-                data: { pointsBalance: { increment: pointsToEarn } }
-              });
-
-              earnedApplied = pointsToEarn;
-            }
+          if (pointsToEarn > 0 && !alreadyEarn) {
+            const expiresAt = calculateExpirationDate(new Date());
+            await tx.loyaltyTransaction.create({
+              data: {
+                accountId: account.id,
+                type: LoyaltyTxnType.EARN,
+                points: pointsToEarn,
+                note: `Naliczono punkty za zamówienie ${order.orderNumber} (10% wartości)`,
+                orderId: order.id,
+                expiresAt
+              }
+            });
+            await tx.loyaltyAccount.update({
+              where: { id: account.id },
+              data: { pointsBalance: { increment: pointsToEarn } }
+            });
+            earnedApplied = pointsToEarn;
           }
         }
 

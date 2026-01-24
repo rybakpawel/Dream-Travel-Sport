@@ -48,6 +48,15 @@ export function createCartRouter(env: Env): express.Router {
         });
       }
 
+      // Jeśli sesja jest PAID, zwróć pusty koszyk (zamówienie zostało złożone)
+      // Użytkownik może komponować nowe zamówienie
+      if (session.status === "PAID") {
+        return res.json({
+          success: true,
+          cart: []
+        });
+      }
+
       // Zwróć koszyk z sesji
       const cartData = session.cartData as Array<{ id: string; qty: number }> | null;
       const cart = Array.isArray(cartData) ? cartData : [];

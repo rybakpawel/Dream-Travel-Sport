@@ -2,6 +2,7 @@ import {
   CheckoutSessionStatus,
   DocumentType,
   InvoiceType,
+  LoyaltyTxnType,
   OrderStatus,
   TripAvailability,
   PaymentProvider,
@@ -20,6 +21,7 @@ import type { Env } from "../env.js";
 import { createOrdersRateLimiter } from "../middleware/rate-limit.js";
 import { prisma } from "../prisma.js";
 import type { EmailService } from "../services/email.js";
+import { calculateExpirationDate, getAvailablePoints } from "../services/loyalty.js";
 
 export function createOrdersRouter(env: Env, emailService: EmailService | null): express.Router {
   const router = express.Router();
@@ -694,7 +696,47 @@ export function createOrdersRouter(env: Env, emailService: EmailService | null):
           }
         }
 
-        // Oznacz sesję jako PAID (źródło prawdy - blokuje alternatywne ścieżki)
+        // KROK 5: Odejmij punkty lojalnościowe (jeśli były użyte)
+        // WAŻNE: Punkty są odejmowane przy składaniu zamówienia, nie dopiero przy opłaceniu
+        // To zapobiega podwójnemu użyciu tych samych punktów w wielu zamówieniach
+        if (pointsToUse > 0) {
+          // Pobierz konto lojalnościowe użytkownika
+          const loyaltyAccount = await tx.loyaltyAccount.findUnique({
+            where: { userId },
+            select: { id: true }
+          });
+
+          if (loyaltyAccount) {
+            // Sprawdź dostępne punkty przed odjęciem
+            const availablePoints = await getAvailablePoints(tx as any, loyaltyAccount.id);
+
+            if (availablePoints < pointsToUse) {
+              throw new ValidationError(
+                `Niewystarczająca liczba punktów. Dostępne: ${availablePoints}, wymagane: ${pointsToUse}`,
+                { path: "usePoints", availablePoints, requestedPoints: pointsToUse }
+              );
+            }
+
+            // Utwórz transakcję SPEND
+            await tx.loyaltyTransaction.create({
+              data: {
+                accountId: loyaltyAccount.id,
+                type: LoyaltyTxnType.SPEND,
+                points: -pointsToUse,
+                note: `Użycie punktów w zamówieniu ${orderNumber}`,
+                orderId: order.id
+              }
+            });
+
+            // Zaktualizuj saldo konta
+            await tx.loyaltyAccount.update({
+              where: { id: loyaltyAccount.id },
+              data: { pointsBalance: { decrement: pointsToUse } }
+            });
+          }
+        }
+
+        // KROK 6: Oznacz sesję jako PAID (źródło prawdy - blokuje alternatywne ścieżki)
         await tx.checkoutSession.update({
           where: { id: session.id },
           // pointsReserved ustawiamy na faktycznie użyte punkty (po clampie), żeby późniejsze przetwarzanie (webhook/admin)

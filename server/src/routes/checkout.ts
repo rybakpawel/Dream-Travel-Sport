@@ -417,49 +417,48 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
         }
       });
 
+      const frontendUrl = env.CORS_ORIGIN.replace(/\/$/, "");
+
       if (!magicToken) {
-        return res.status(404).json({
-          error: "Invalid token",
-          message: "Nieprawidłowy link. Sprawdź czy link jest kompletny."
-        });
+        // Redirect do strony koszyka z komunikatem błędu
+        return res.redirect(
+          `${frontendUrl}/koszyk.html?error=${encodeURIComponent("invalid_token")}&message=${encodeURIComponent("Nieprawidłowy link. Sprawdź czy link jest kompletny.")}`
+        );
       }
 
       if (magicToken.usedAt) {
-        return res.status(400).json({
-          error: "Token already used",
-          message: "Ten link został już użyty. Jeśli chcesz użyć punktów, poproś o nowy link."
-        });
+        // Redirect do strony koszyka z komunikatem błędu
+        return res.redirect(
+          `${frontendUrl}/koszyk.html?error=${encodeURIComponent("token_used")}&message=${encodeURIComponent("Ten link został już użyty. Jeśli chcesz użyć punktów, poproś o nowy link.")}`
+        );
       }
 
       if (magicToken.expiresAt < new Date()) {
-        return res.status(400).json({
-          error: "Token expired",
-          message:
-            "Ten link wygasł. Linki do użycia punktów są ważne przez 15 minut. Poproś o nowy link."
-        });
+        // Redirect do strony koszyka z komunikatem błędu
+        return res.redirect(
+          `${frontendUrl}/koszyk.html?error=${encodeURIComponent("token_expired")}&message=${encodeURIComponent("Ten link wygasł. Linki do użycia punktów są ważne przez 15 minut. Poproś o nowy link.")}`
+        );
       }
 
       const session = magicToken.session;
 
       // Sprawdź czy sesja nie wygasła
       if (session.expiresAt < new Date()) {
-        return res.status(400).json({
-          error: "Session expired",
-          message: "Sesja checkoutu wygasła. Proszę rozpocząć nowy checkout."
-        });
+        return res.redirect(
+          `${frontendUrl}/koszyk.html?error=${encodeURIComponent("session_expired")}&message=${encodeURIComponent("Sesja checkoutu wygasła. Proszę rozpocząć nowy checkout.")}`
+        );
       }
 
       if (session.status !== CheckoutSessionStatus.PENDING) {
-        return res.status(400).json({
-          error: "Session is not pending",
-          status: session.status,
-          message:
+        const errorMessage =
             session.status === CheckoutSessionStatus.PAID
               ? "Ta sesja checkoutu została już opłacona. Nie można użyć punktów dla opłaconego zamówienia."
               : session.status === CheckoutSessionStatus.EXPIRED
                 ? "Sesja checkoutu wygasła. Proszę rozpocząć nowy checkout."
-                : "Sesja checkoutu nie jest w stanie umożliwiającym użycie punktów."
-        });
+              : "Sesja checkoutu nie jest w stanie umożliwiającym użycie punktów.";
+        return res.redirect(
+          `${frontendUrl}/koszyk.html?error=${encodeURIComponent("session_invalid")}&message=${encodeURIComponent(errorMessage)}`
+        );
       }
 
       // Oznacz token jako użyty
@@ -532,7 +531,6 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       });
 
       // Redirect do checkoutu z sesją
-      const frontendUrl = env.CORS_ORIGIN.replace(/\/$/, "");
       res.redirect(
         `${frontendUrl}/koszyk.html?session=${encodeURIComponent(session.id)}&points=${encodeURIComponent(
           String(pointsToReserve)
@@ -727,7 +725,8 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
               )
               .optional()
           })
-        )
+        ),
+        pointsDiscountCents: z.number().int().min(0).optional() // Zniżka z Dream Points
       });
 
       const data = schema.parse(req.body);
@@ -954,7 +953,17 @@ export function createCheckoutRouter(env: Env, emailService: EmailService | null
       doc.fontSize(14);
       doc.text(`Łączna liczba uczestników: ${data.trips.reduce((sum, t) => sum + t.qty, 0)}`);
       const summaryBoldFont = currentFont === "Arial" ? "Arial" : "Helvetica-Bold";
+      
+      // Uwzględnij zniżkę z Dream Points jeśli jest dostępna
+      const pointsDiscountCents = data.pointsDiscountCents ?? 0;
+      if (pointsDiscountCents > 0) {
+        doc.text(`Kwota przed zniżką: ${(totalCents / 100).toFixed(2)} zł`);
+        doc.text(`Zniżka z Dream Points: -${(pointsDiscountCents / 100).toFixed(2)} zł`);
+        const finalTotalCents = Math.max(0, totalCents - pointsDiscountCents);
+        doc.font(summaryBoldFont).text(`Łączna kwota: ${(finalTotalCents / 100).toFixed(2)} zł`);
+      } else {
       doc.font(summaryBoldFont).text(`Łączna kwota: ${(totalCents / 100).toFixed(2)} zł`);
+      }
       doc.font(currentFont);
 
       // Stopka
